@@ -68,7 +68,8 @@ def pending_leaves():
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
     approver_id = int(get_jwt_identity())
-    return jsonify(Leave.get_pending(approver_id)), 200
+    org_id      = claims.get('organisation_id')
+    return jsonify(Leave.get_pending(approver_id, organisation_id=org_id)), 200
 
 
 @hr_bp.route('/leaves/all', methods=['GET'])
@@ -77,11 +78,12 @@ def all_leaves():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
+    org_id  = claims.get('organisation_id')
     status  = request.args.get('status')
     user_id = request.args.get('user_id')
     month   = request.args.get('month')
     year    = request.args.get('year')
-    return jsonify(Leave.get_all(status, user_id, month, year)), 200
+    return jsonify(Leave.get_all(status, user_id, month, year, organisation_id=org_id)), 200
 
 
 @hr_bp.route('/leaves/calendar', methods=['GET'])
@@ -98,7 +100,8 @@ def leave_stats():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
-    return jsonify(Leave.get_stats()), 200
+    org_id = claims.get('organisation_id')
+    return jsonify(Leave.get_stats(organisation_id=org_id)), 200
 
 
 @hr_bp.route('/leaves/<int:leave_id>/approve', methods=['PATCH'])
@@ -179,7 +182,8 @@ def pending_permissions():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
-    return jsonify(Permission.get_pending()), 200
+    org_id = claims.get('organisation_id')
+    return jsonify(Permission.get_pending(organisation_id=org_id)), 200
 
 
 @hr_bp.route('/permissions/all', methods=['GET'])
@@ -188,9 +192,10 @@ def all_permissions():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
+    org_id  = claims.get('organisation_id')
     status  = request.args.get('status')
     user_id = request.args.get('user_id')
-    return jsonify(Permission.get_all(status, user_id)), 200
+    return jsonify(Permission.get_all(status, user_id, organisation_id=org_id)), 200
 
 
 @hr_bp.route('/permissions/<int:perm_id>/approve', methods=['PATCH'])

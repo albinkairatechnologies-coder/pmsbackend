@@ -66,8 +66,9 @@ def all_feedback():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
+    org_id   = claims.get('organisation_id')
     category = request.args.get('category')
-    return jsonify(Feedback.get_all(category)), 200
+    return jsonify(Feedback.get_all(category, organisation_id=org_id)), 200
 
 
 @feedback_bp.route('/feedback/stats', methods=['GET'])
@@ -76,7 +77,8 @@ def feedback_stats():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
-    return jsonify(Feedback.get_stats()), 200
+    org_id = claims.get('organisation_id')
+    return jsonify(Feedback.get_stats(organisation_id=org_id)), 200
 
 
 # ════════════════════════════════════════════════════════════

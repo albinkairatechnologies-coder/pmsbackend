@@ -43,7 +43,8 @@ def create_task():
             department=data.get('department', 'general'),
             status=data.get('status', 'pending'),
             priority=data.get('priority', 'medium'),
-            due_date=due_date
+            due_date=due_date,
+            organisation_id=claims.get('organisation_id')
         )
 
         # Add participants
@@ -101,7 +102,8 @@ def get_tasks():
         tasks = Task.get_all(
             team_id=int(team_id) if team_id else None,
             department_id=int(department_id) if department_id else None,
-            status=status
+            status=status,
+            organisation_id=claims.get('organisation_id')
         )
     elif claims['role'] in LEAD_ROLES:
         tasks = Task.get_for_team_lead(user_id)

@@ -6,15 +6,15 @@ class Task:
     @staticmethod
     def create(title, description, assigned_by, assigned_to=None, team_id=None,
                department_id=None, client_id=None, department='general',
-               status='pending', priority='medium', due_date=None):
+               status='pending', priority='medium', due_date=None, organisation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO tasks (title, description, assigned_by, assigned_to, team_id,
-            department_id, client_id, department, status, priority, due_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            department_id, client_id, department, status, priority, due_date, organisation_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (title, description, assigned_by, assigned_to, team_id,
-              department_id, client_id, department, status, priority, due_date))
+              department_id, client_id, department, status, priority, due_date, organisation_id))
         conn.commit()
         task_id = cursor.lastrowid
         # Log activity
@@ -50,7 +50,7 @@ class Task:
         return task
 
     @staticmethod
-    def get_all(team_id=None, department_id=None, status=None, assigned_to=None, assigned_by=None):
+    def get_all(team_id=None, department_id=None, status=None, assigned_to=None, assigned_by=None, organisation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
         query = """
@@ -69,6 +69,9 @@ class Task:
             WHERE 1=1
         """
         params = []
+        if organisation_id is not None:
+            query += " AND t.organisation_id = %s"
+            params.append(organisation_id)
         if team_id:
             query += " AND t.team_id = %s"
             params.append(team_id)

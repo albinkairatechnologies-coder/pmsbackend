@@ -41,20 +41,21 @@ def login():
     if not user or not verify_password(password, user['password']):
         return jsonify({'error': 'Invalid email or password'}), 401
 
-    access_token  = generate_token(user['id'], user['role'])
-    refresh_token = generate_refresh_token(user['id'], user['role'])
+    access_token  = generate_token(user['id'], user['role'], user.get('organisation_id'))
+    refresh_token = generate_refresh_token(user['id'], user['role'], user.get('organisation_id'))
 
     return jsonify({
         'token':         access_token,
         'refresh_token': refresh_token,
         'user': {
-            'id':            user['id'],
-            'name':          user['name'],
-            'email':         user['email'],
-            'role':          user['role'],
-            'team_id':       user.get('team_id'),
-            'department_id': user.get('department_id'),
-            'manager_id':    user.get('manager_id'),
+            'id':              user['id'],
+            'name':            user['name'],
+            'email':           user['email'],
+            'role':            user['role'],
+            'organisation_id': user.get('organisation_id'),
+            'team_id':         user.get('team_id'),
+            'department_id':   user.get('department_id'),
+            'manager_id':      user.get('manager_id'),
         },
     }), 200
 
@@ -66,7 +67,8 @@ def refresh():
     user_id = int(get_jwt_identity())
     claims  = get_jwt()
     role    = claims.get('role', '')
-    new_token = generate_token(user_id, role)
+    org_id  = claims.get('organisation_id')
+    new_token = generate_token(user_id, role, org_id)
     return jsonify({'token': new_token}), 200
 
 
@@ -86,6 +88,8 @@ def get_current_user():
 @auth_bp.route('/users', methods=['GET'])
 @jwt_required()
 def get_users():
+    claims        = get_jwt()
+    org_id        = claims.get('organisation_id')
     role          = request.args.get('role')
     team_id       = request.args.get('team_id')
     department_id = request.args.get('department_id')
@@ -97,8 +101,8 @@ def get_users():
         role=role,
         team_id=int(team_id) if team_id and team_id.isdigit() else None,
         department_id=int(department_id) if department_id and department_id.isdigit() else None,
+        organisation_id=org_id,
     )
-    # Strip passwords from list
     for u in users:
         u.pop('password', None)
     return jsonify(users), 200

@@ -11,19 +11,19 @@ def verify_password(password: str, hashed: str) -> bool:
     return check_password_hash(hashed, password)
 
 
-def generate_token(user_id: int, role: str) -> str:
+def generate_token(user_id: int, role: str, organisation_id: int = None) -> str:
     """Short-lived access token (8 hours)."""
     return create_access_token(
         identity=str(user_id),
-        additional_claims={'role': role},
+        additional_claims={'role': role, 'organisation_id': organisation_id},
         expires_delta=timedelta(hours=8),
     )
 
 
-def generate_refresh_token(user_id: int, role: str) -> str:
+def generate_refresh_token(user_id: int, role: str, organisation_id: int = None) -> str:
     """Long-lived refresh token (30 days)."""
     return create_refresh_token(
         identity=str(user_id),
-        additional_claims={'role': role},
+        additional_claims={'role': role, 'organisation_id': organisation_id},
         expires_delta=timedelta(days=30),
     )

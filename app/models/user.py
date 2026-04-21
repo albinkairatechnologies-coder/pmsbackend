@@ -3,14 +3,14 @@ from app.utils.auth import hash_password
 
 class User:
     @staticmethod
-    def create(name, email, password, role, phone=None, team_id=None, department_id=None, manager_id=None):
+    def create(name, email, password, role, phone=None, team_id=None, department_id=None, manager_id=None, organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
             hashed_pwd = hash_password(password)
             cursor.execute(
-                "INSERT INTO users (name, email, password, role, phone, team_id, department_id, manager_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
-                (name, email, hashed_pwd, role, phone, team_id, department_id, manager_id)
+                "INSERT INTO users (organisation_id, name, email, password, role, phone, team_id, department_id, manager_id) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (organisation_id, name, email, hashed_pwd, role, phone, team_id, department_id, manager_id)
             )
             conn.commit()
             user_id = cursor.lastrowid
@@ -55,7 +55,7 @@ class User:
             conn.close()
 
     @staticmethod
-    def get_all(role=None, team_id=None, department_id=None):
+    def get_all(role=None, team_id=None, department_id=None, organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
@@ -69,6 +69,9 @@ class User:
                 WHERE u.role != 'client'
             """
             params = []
+            if organisation_id is not None:
+                query += " AND u.organisation_id = %s"
+                params.append(organisation_id)
             if role:
                 query += " AND u.role = %s"
                 params.append(role)
@@ -107,18 +110,20 @@ class User:
             conn.close()
 
     @staticmethod
-    def get_team_leads():
+    def get_team_leads(organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
+            org_f  = "AND u.organisation_id = %s" if organisation_id is not None else ""
+            params = ([organisation_id] if organisation_id is not None else [])
+            cursor.execute(f"""
                 SELECT u.id, u.name, u.email, u.role, u.team_id, u.department_id,
                        t.name as team_name, d.name as department_name
                 FROM users u
                 LEFT JOIN teams t ON u.team_id = t.id
                 LEFT JOIN departments d ON u.department_id = d.id
-                WHERE u.role IN ('team_lead', 'crm_head', 'marketing_head', 'crm')
-            """)
+                WHERE u.role IN ('team_lead', 'crm_head', 'marketing_head', 'crm') {org_f}
+            """, params)
             leads = cursor.fetchall()
             cursor.close()
             return leads

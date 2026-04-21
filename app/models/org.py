@@ -2,25 +2,37 @@ from app.utils.database import get_db_connection
 
 class Team:
     @staticmethod
-    def create(name, description=None):
+    def create(name, description=None, org_id=None):
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO teams (name, description) VALUES (%s, %s)", (name, description))
+        cursor.execute(
+            "INSERT INTO teams (name, description, organisation_id) VALUES (%s, %s, %s)",
+            (name, description, org_id)
+        )
         conn.commit()
         team_id = cursor.lastrowid
         cursor.close(); conn.close()
         return team_id
 
     @staticmethod
-    def get_all():
+    def get_all(org_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT t.*, COUNT(DISTINCT u.id) as member_count
-            FROM teams t
-            LEFT JOIN users u ON u.team_id = t.id
-            GROUP BY t.id ORDER BY t.created_at ASC
-        """)
+        if org_id is not None:
+            cursor.execute("""
+                SELECT t.*, COUNT(DISTINCT u.id) as member_count
+                FROM teams t
+                LEFT JOIN users u ON u.team_id = t.id
+                WHERE t.organisation_id = %s
+                GROUP BY t.id ORDER BY t.created_at ASC
+            """, (org_id,))
+        else:
+            cursor.execute("""
+                SELECT t.*, COUNT(DISTINCT u.id) as member_count
+                FROM teams t
+                LEFT JOIN users u ON u.team_id = t.id
+                GROUP BY t.id ORDER BY t.created_at ASC
+            """)
         teams = cursor.fetchall()
         cursor.close(); conn.close()
         return teams
@@ -48,32 +60,38 @@ class Department:
     def create(name, team_id, description=None):
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO departments (name, team_id, description) VALUES (%s, %s, %s)", (name, team_id, description))
+        cursor.execute(
+            "INSERT INTO departments (name, team_id, description) VALUES (%s, %s, %s)",
+            (name, team_id, description)
+        )
         conn.commit()
         dept_id = cursor.lastrowid
         cursor.close(); conn.close()
         return dept_id
 
     @staticmethod
-    def get_all(team_id=None):
+    def get_all(team_id=None, org_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        conditions = []
+        params = []
+
         if team_id:
-            cursor.execute("""
-                SELECT d.*, t.name as team_name, COUNT(DISTINCT u.id) as member_count
-                FROM departments d
-                JOIN teams t ON d.team_id = t.id
-                LEFT JOIN users u ON u.department_id = d.id
-                WHERE d.team_id = %s GROUP BY d.id
-            """, (team_id,))
-        else:
-            cursor.execute("""
-                SELECT d.*, t.name as team_name, COUNT(DISTINCT u.id) as member_count
-                FROM departments d
-                JOIN teams t ON d.team_id = t.id
-                LEFT JOIN users u ON u.department_id = d.id
-                GROUP BY d.id ORDER BY t.id, d.id
-            """)
+            conditions.append("d.team_id = %s")
+            params.append(team_id)
+        if org_id is not None:
+            conditions.append("t.organisation_id = %s")
+            params.append(org_id)
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        cursor.execute(f"""
+            SELECT d.*, t.name as team_name, COUNT(DISTINCT u.id) as member_count
+            FROM departments d
+            JOIN teams t ON d.team_id = t.id
+            LEFT JOIN users u ON u.department_id = d.id
+            {where}
+            GROUP BY d.id ORDER BY t.id, d.id
+        """, params)
         depts = cursor.fetchall()
         cursor.close(); conn.close()
         return depts

@@ -31,7 +31,8 @@ def get_live():
     claims = get_jwt()
     if claims['role'] not in ADMIN_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
-    rows = ActivityLog.get_live_all()
+    org_id = claims.get('organisation_id')
+    rows = ActivityLog.get_live_all(organisation_id=org_id)
     return jsonify(rows), 200
 
 

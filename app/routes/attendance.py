@@ -62,10 +62,11 @@ def get_admin():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
+    org_id      = claims.get('organisation_id')
     target_date = request.args.get('date')
-    rows        = Attendance.get_all_for_date(target_date)
-    absent      = Attendance.get_absent_today() if not target_date else []
-    stats       = Attendance.get_today_stats()
+    rows        = Attendance.get_all_for_date(target_date, organisation_id=org_id)
+    absent      = Attendance.get_absent_today(organisation_id=org_id) if not target_date else []
+    stats       = Attendance.get_today_stats(organisation_id=org_id)
     return jsonify({'records': rows, 'absent': absent, 'stats': stats}), 200
 
 
@@ -76,13 +77,14 @@ def get_report():
     claims = get_jwt()
     if claims['role'] not in LEAD_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
+    org_id  = claims.get('organisation_id')
     start   = request.args.get('start')
     end     = request.args.get('end')
     user_id = request.args.get('user_id')
     dept_id = request.args.get('dept_id')
     if not start or not end:
         return jsonify({'error': 'start and end dates required'}), 400
-    rows = Attendance.get_report(start, end, user_id, dept_id)
+    rows = Attendance.get_report(start, end, user_id, dept_id, organisation_id=org_id)
     return jsonify(rows), 200
 
 

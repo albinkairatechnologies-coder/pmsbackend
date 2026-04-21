@@ -16,9 +16,10 @@ def get_leads():
     claims = get_jwt()
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
+    org_id      = claims.get('organisation_id')
     status      = request.args.get('status')
     assigned_to = request.args.get('assigned_to')
-    leads = Lead.get_all(status=status, assigned_to=assigned_to)
+    leads = Lead.get_all(status=status, assigned_to=assigned_to, organisation_id=org_id)
     return jsonify(leads), 200
 
 
@@ -28,7 +29,8 @@ def get_lead_stats():
     claims = get_jwt()
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
-    return jsonify(Lead.get_stats()), 200
+    org_id = claims.get('organisation_id')
+    return jsonify(Lead.get_stats(organisation_id=org_id)), 200
 
 
 @leads_bp.route('/leads/<int:lead_id>', methods=['GET'])
@@ -64,7 +66,8 @@ def create_lead():
             service_interest=data.get('service_interest', ''),
             notes=data.get('notes', ''),
             assigned_to=data.get('assigned_to'),
-            created_by=created_by
+            created_by=created_by,
+            organisation_id=claims.get('organisation_id')
         )
         return jsonify({"message": "Lead created", "lead_id": lead_id}), 201
     except Exception as e:

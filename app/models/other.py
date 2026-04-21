@@ -221,10 +221,12 @@ class WorkLog:
         }
 
     @staticmethod
-    def get_all_for_admin(start_date=None, end_date=None, client_id=None, department=None, user_id=None):
+    def get_all_for_admin(start_date=None, end_date=None, client_id=None, department=None, user_id=None, organisation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        query = """
+        org_f  = "AND u.organisation_id = %s" if organisation_id is not None else ""
+        params = ([organisation_id] if organisation_id is not None else [])
+        query = f"""
             SELECT wl.*, u.name as user_name, u.role as user_role,
                    c.company_name, l.name as lead_name, l.company as lead_company,
                    t.title as task_title,
@@ -239,9 +241,8 @@ class WorkLog:
             LEFT JOIN teams tm ON u.team_id = tm.id
             LEFT JOIN users tl ON wl.team_leader_id = tl.id
             LEFT JOIN users ab ON wl.approved_by = ab.id
-            WHERE 1=1
+            WHERE 1=1 {org_f}
         """
-        params = []
         if client_id:
             query += " AND wl.client_id = %s"; params.append(client_id)
         if user_id:

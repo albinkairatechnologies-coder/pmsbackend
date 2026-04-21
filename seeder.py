@@ -142,4 +142,28 @@ def seed():
 
 
 if __name__ == "__main__":
-    seed()
+    if '--superadmin' in sys.argv:
+        # ── Create first superadmin ───────────────────────────
+        print("\n── Creating SuperAdmin ──")
+        name     = input("SuperAdmin Name: ").strip()
+        email    = input("SuperAdmin Email: ").strip().lower()
+        password = input("SuperAdmin Password: ").strip()
+
+        if not name or not email or not password:
+            print("ERROR: All fields are required.")
+            sys.exit(1)
+
+        from app.models.superadmin import SuperAdmin
+        existing = SuperAdmin.get_by_email(email)
+        if existing:
+            print(f"ERROR: SuperAdmin with email '{email}' already exists.")
+            sys.exit(1)
+
+        sa_id = SuperAdmin.create(name=name, email=email, password=password)
+        print(f"\n✓ SuperAdmin created successfully!")
+        print(f"  ID:    {sa_id}")
+        print(f"  Name:  {name}")
+        print(f"  Email: {email}")
+        print(f"\n  Login at: POST /api/superadmin/login")
+    else:
+        seed()

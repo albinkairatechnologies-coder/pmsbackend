@@ -13,6 +13,7 @@ ALLOWED_ROLES = ['admin', 'crm_head', 'marketing_head', 'team_lead']
 def create_client():
     data = request.json
     claims = get_jwt()
+    org_id = claims.get('organisation_id')
 
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
@@ -29,7 +30,8 @@ def create_client():
                     email=data['email'],
                     password='client123',
                     role='client',
-                    phone=data.get('phone')
+                    phone=data.get('phone'),
+                    organisation_id=org_id
                 )
 
         client_id = Client.create(
@@ -42,7 +44,8 @@ def create_client():
             deadline=data.get('deadline'),
             notes=data.get('notes'),
             user_id=user_id,
-            total_amount=data.get('total_amount')
+            total_amount=data.get('total_amount'),
+            organisation_id=org_id
         )
 
         if data.get('team_members'):
@@ -67,14 +70,15 @@ def create_client():
 @jwt_required()
 def get_clients():
     user_id = int(get_jwt_identity())
-    claims = get_jwt()
-    status = request.args.get('status')
+    claims  = get_jwt()
+    org_id  = claims.get('organisation_id')
+    status  = request.args.get('status')
 
     if claims['role'] == 'client':
         client = Client.get_by_user(user_id)
         return jsonify([client] if client else []), 200
 
-    clients = Client.get_all(status)
+    clients = Client.get_all(status, organisation_id=org_id)
     return jsonify(clients), 200
 
 
@@ -84,7 +88,6 @@ def get_client(client_id):
     client = Client.get_by_id(client_id)
     if not client:
         return jsonify({"error": "Client not found"}), 404
-
     team = Client.get_team(client_id)
     client['team'] = team
     return jsonify(client), 200
@@ -95,24 +98,19 @@ def get_client(client_id):
 def update_client(client_id):
     data = request.json
     claims = get_jwt()
-
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
-
     try:
         Client.update(client_id, **data)
-
         if data.get('team_members'):
             Client.assign_team(client_id, data['team_members'])
-
         return jsonify({"message": "Client updated"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-
-@client_bp.route('/clients/search', methods=['GET'])
 @jwt_required()
 def search_clients():
-    query = request.args.get('q', '')
-    clients = Client.search(query)
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    query  = request.args.get('q', '')
+    clients = Client.search(query, organisation_id=org_id)
     return jsonify(clients), 200

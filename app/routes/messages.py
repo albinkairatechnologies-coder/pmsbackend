@@ -14,17 +14,20 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 @jwt_required()
 def get_contacts():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    
-    # Get all individual users
-    cursor.execute('''
+    org_f  = "AND u.organisation_id = %s" if org_id is not None else ""
+    params = ([org_id, user_id] if org_id is not None else [user_id])
+    cursor.execute(f'''
         SELECT u.id, u.name, u.email, u.role, d.name as department_name, t.name as team_name
         FROM users u
         LEFT JOIN departments d ON u.department_id = d.id
         LEFT JOIN teams t ON u.team_id = t.id
-        WHERE u.id != %s
-    ''', (user_id,))
+        WHERE u.id != %s {org_f}
+    ''', [user_id] + ([org_id] if org_id is not None else []))
     contacts = cursor.fetchall() or []
     
     # Add individual chat details

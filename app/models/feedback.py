@@ -52,18 +52,19 @@ class Feedback:
         return rows
 
     @staticmethod
-    def get_all(category: str = None):
+    def get_all(category: str = None, organisation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        query = """
+        org_f  = "AND u.organisation_id = %s" if organisation_id is not None else ""
+        params = ([organisation_id] if organisation_id is not None else [])
+        query = f"""
             SELECT f.*,
                 CASE WHEN f.visibility='anonymous' THEN 'Anonymous' ELSE u.name END AS employee_name,
                 CASE WHEN f.visibility='anonymous' THEN NULL ELSE u.role END AS employee_role
             FROM feedback f
             JOIN users u ON f.user_id = u.id
-            WHERE 1=1
+            WHERE 1=1 {org_f}
         """
-        params = []
         if category:
             query += " AND f.category = %s"; params.append(category)
         query += " ORDER BY f.created_at DESC"
@@ -73,21 +74,25 @@ class Feedback:
         return rows
 
     @staticmethod
-    def get_stats():
+    def get_stats(organisation_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
+        org_f  = "AND u.organisation_id = %s" if organisation_id is not None else ""
+        params = ([organisation_id] if organisation_id is not None else [])
+        cursor.execute(f"""
             SELECT
                 COUNT(*) AS total,
-                ROUND(AVG(rating), 1) AS avg_rating,
-                SUM(category='work_environment') AS work_environment,
-                SUM(category='team_issue') AS team_issue,
-                SUM(category='suggestion') AS suggestion,
-                SUM(category='general') AS general
-            FROM feedback
-            WHERE MONTH(created_at) = MONTH(CURDATE())
-              AND YEAR(created_at)  = YEAR(CURDATE())
-        """)
+                ROUND(AVG(f.rating), 1) AS avg_rating,
+                SUM(f.category='work_environment') AS work_environment,
+                SUM(f.category='team_issue') AS team_issue,
+                SUM(f.category='suggestion') AS suggestion,
+                SUM(f.category='general') AS general
+            FROM feedback f
+            JOIN users u ON f.user_id = u.id
+            WHERE MONTH(f.created_at) = MONTH(CURDATE())
+              AND YEAR(f.created_at)  = YEAR(CURDATE())
+              {org_f}
+        """, params)
         row = _s(cursor.fetchone())
         cursor.close(); conn.close()
         return row or {}

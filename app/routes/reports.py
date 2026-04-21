@@ -300,19 +300,19 @@ def salary_report_pdf():
     if claims['role'] not in ADMIN_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
 
-    month = request.args.get('month', datetime.now().month)
-    year = request.args.get('year', datetime.now().year)
+    month  = request.args.get('month', datetime.now().month)
+    year   = request.args.get('year', datetime.now().year)
+    org_id = claims.get('organisation_id')
 
     from app.models.salary import Salary
     from app.utils.database import get_db_connection
-    
-    # Get all employees (non-client)
-    conn = get_db_connection()
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, role FROM users WHERE role != 'client' ORDER BY name")
+    org_f  = "AND organisation_id = %s" if org_id is not None else ""
+    params = ([org_id] if org_id is not None else [])
+    cursor.execute(f"SELECT id, name, role FROM users WHERE role != 'client' {org_f} ORDER BY name", params)
     employees = cursor.fetchall()
-    cursor.close()
-    conn.close()
+    cursor.close(); conn.close()
 
     rows = []
     total_payout = 0
@@ -428,15 +428,17 @@ def salary_report_docx():
     if claims['role'] not in ADMIN_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
 
-    month = request.args.get('month', datetime.now().month)
-    year = request.args.get('year', datetime.now().year)
+    month  = request.args.get('month', datetime.now().month)
+    year   = request.args.get('year', datetime.now().year)
+    org_id = claims.get('organisation_id')
 
     from app.models.salary import Salary
     from app.utils.database import get_db_connection
-    
-    conn = get_db_connection()
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT id, name, role FROM users WHERE role != 'client' ORDER BY name")
+    org_f  = "AND organisation_id = %s" if org_id is not None else ""
+    params = ([org_id] if org_id is not None else [])
+    cursor.execute(f"SELECT id, name, role FROM users WHERE role != 'client' {org_f} ORDER BY name", params)
     employees = cursor.fetchall()
     cursor.close(); conn.close()
 

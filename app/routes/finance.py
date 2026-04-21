@@ -14,7 +14,8 @@ def get_all_finance():
     claims = get_jwt()
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
-    rows = ClientPayment.get_all_finance_summary()
+    org_id = claims.get('organisation_id')
+    rows = ClientPayment.get_all_finance_summary(organisation_id=org_id)
     return jsonify(rows), 200
 
 
@@ -24,7 +25,8 @@ def get_finance_stats():
     claims = get_jwt()
     if claims['role'] not in ALLOWED_ROLES:
         return jsonify({"error": "Unauthorized"}), 403
-    stats = ClientPayment.get_overall_stats()
+    org_id = claims.get('organisation_id')
+    stats = ClientPayment.get_overall_stats(organisation_id=org_id)
     return jsonify(stats), 200
 
 

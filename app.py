@@ -1,5 +1,4 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Flask, jsonify, request, make_response
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -56,12 +55,28 @@ ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
     'http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001'
 ).split(',') if o.strip()]
 
-CORS(app,
-     origins=ALLOWED_ORIGINS,
-     supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
-     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-     max_age=600)
+
+def _add_cors(response):
+    origin = request.headers.get('Origin', '')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin']      = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods']     = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization, X-Requested-With'
+        response.headers['Access-Control-Max-Age']           = '600'
+    return response
+
+
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        res = make_response('', 200)
+        return _add_cors(res)
+
+
+@app.after_request
+def attach_cors(response):
+    return _add_cors(response)
 
 # ── JWT ───────────────────────────────────────────────────────
 jwt = JWTManager(app)
@@ -142,6 +157,9 @@ def unhandled_exception(e):
     return jsonify({'error': 'Internal server error'}), 500
 
 # ── Blueprints ────────────────────────────────────────────────
+from app.routes.superadmin import superadmin_bp
+from app.routes.chat import chat_bp
+
 app.register_blueprint(auth_bp,       url_prefix='/api/auth')
 app.register_blueprint(client_bp,     url_prefix='/api')
 app.register_blueprint(task_bp,       url_prefix='/api')
@@ -163,6 +181,8 @@ app.register_blueprint(documents_bp)
 app.register_blueprint(finance_bp,       url_prefix='/api')
 app.register_blueprint(leads_bp,         url_prefix='/api')
 app.register_blueprint(domain_bp,        url_prefix='/api')
+app.register_blueprint(superadmin_bp,    url_prefix='/api/superadmin')
+app.register_blueprint(chat_bp,          url_prefix='/api')
 
 # Apply stricter rate limits to auth endpoints
 limiter.limit('10 per minute')(auth_bp)

@@ -36,15 +36,20 @@ def serialize(row):
 @documents_bp.route('/', methods=['GET'])
 @jwt_required()
 def get_documents():
-    conn = get_db_connection()
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
+    org_f  = "AND u.organisation_id = %s" if org_id is not None else ""
+    params = ([org_id] if org_id is not None else [])
+    cursor.execute(f'''
         SELECT d.id, d.title, d.description, d.file_url, d.file_name, d.file_type, d.file_size,
                d.uploaded_at, d.uploader_id, u.name as uploader_name, u.role as uploader_role
         FROM documents d
         JOIN users u ON d.uploader_id = u.id
+        WHERE 1=1 {org_f}
         ORDER BY d.uploaded_at DESC
-    ''')
+    ''', params)
     rows = cursor.fetchall() or []
     cursor.close(); conn.close()
     return jsonify([serialize(r) for r in rows]), 200

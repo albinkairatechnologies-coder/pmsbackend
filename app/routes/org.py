@@ -10,7 +10,9 @@ org_bp = Blueprint('org', __name__)
 @org_bp.route('/teams', methods=['GET'])
 @jwt_required()
 def get_teams():
-    teams = Team.get_all()
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    teams = Team.get_all(org_id=org_id)
     return jsonify(teams), 200
 
 @org_bp.route('/teams', methods=['POST'])
@@ -19,8 +21,9 @@ def create_team():
     claims = get_jwt()
     if claims['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
+    org_id = claims.get('organisation_id')
     data = request.json
-    team_id = Team.create(data['name'], data.get('description'))
+    team_id = Team.create(data['name'], data.get('description'), org_id=org_id)
     return jsonify({"message": "Team created", "team_id": team_id}), 201
 
 @org_bp.route('/teams/<int:team_id>', methods=['DELETE'])
@@ -37,8 +40,10 @@ def delete_team(team_id):
 @org_bp.route('/departments', methods=['GET'])
 @jwt_required()
 def get_departments():
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
     team_id = request.args.get('team_id')
-    depts = Department.get_all(int(team_id) if team_id else None)
+    depts = Department.get_all(int(team_id) if team_id else None, org_id=org_id)
     return jsonify(depts), 200
 
 @org_bp.route('/departments', methods=['POST'])
@@ -65,13 +70,16 @@ def delete_department(dept_id):
 @org_bp.route('/members', methods=['GET'])
 @jwt_required()
 def get_members():
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
     role = request.args.get('role')
     team_id = request.args.get('team_id')
     department_id = request.args.get('department_id')
     users = User.get_all(
         role=role,
         team_id=int(team_id) if team_id else None,
-        department_id=int(department_id) if department_id else None
+        department_id=int(department_id) if department_id else None,
+        organisation_id=org_id
     )
     return jsonify(users), 200
 
@@ -81,6 +89,7 @@ def create_member():
     claims = get_jwt()
     if claims['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
+    org_id = claims.get('organisation_id')
     data = request.json
     try:
         user_id = User.create(
@@ -91,7 +100,8 @@ def create_member():
             phone=data.get('phone'),
             team_id=int(data['team_id']) if data.get('team_id') else None,
             department_id=int(data['department_id']) if data.get('department_id') else None,
-            manager_id=int(data['manager_id']) if data.get('manager_id') else None
+            manager_id=int(data['manager_id']) if data.get('manager_id') else None,
+            organisation_id=org_id
         )
         return jsonify({"message": "Member created", "user_id": user_id}), 201
     except Exception as e:
@@ -121,7 +131,9 @@ def delete_member(user_id):
 @org_bp.route('/members/team-leads', methods=['GET'])
 @jwt_required()
 def get_team_leads():
-    leads = User.get_team_leads()
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    leads = User.get_team_leads(organisation_id=org_id)
     return jsonify(leads), 200
 
 @org_bp.route('/members/<int:user_id>/subordinates', methods=['GET'])
@@ -135,19 +147,21 @@ def get_subordinates(user_id):
 @org_bp.route('/org-chart', methods=['GET'])
 @jwt_required()
 def get_org_chart():
-    teams = Team.get_all()
+    claims = get_jwt()
+    org_id = claims.get('organisation_id')
+    teams = Team.get_all(org_id=org_id)
     result = []
     for team in teams:
-        depts = Department.get_all(team['id'])
-        team_leads = User.get_all(team_id=team['id'], role='team_lead')
+        depts = Department.get_all(team['id'], org_id=org_id)
+        team_leads = User.get_all(team_id=team['id'], role='team_lead', organisation_id=org_id)
         team_data = {
             **team,
             'leads': team_leads,
             'departments': []
         }
         for dept in depts:
-            dept_leads = User.get_all(department_id=dept['id'], role='team_lead')
-            dept_members = User.get_all(department_id=dept['id'])
+            dept_leads = User.get_all(department_id=dept['id'], role='team_lead', organisation_id=org_id)
+            dept_members = User.get_all(department_id=dept['id'], organisation_id=org_id)
             dept_members = [m for m in dept_members if m['role'] not in ('team_lead', 'crm_head')]
             team_data['departments'].append({
                 **dept,

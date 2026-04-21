@@ -1,5 +1,4 @@
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Flask, jsonify, request, make_response
 from flask_jwt_extended import JWTManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -29,14 +28,39 @@ ALLOWED_ORIGINS = [o.strip() for o in os.getenv(
 
 logger.info('ALLOWED_ORIGINS: %s', ALLOWED_ORIGINS)
 
-CORS(app,
-     origins=ALLOWED_ORIGINS,
-     supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-Requested-With'],
-     methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-     max_age=600)
+
+def add_cors(response):
+    origin = request.headers.get('Origin', '')
+    if origin in ALLOWED_ORIGINS:
+        response.headers['Access-Control-Allow-Origin']      = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Methods']     = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers']     = 'Content-Type, Authorization, X-Requested-With'
+        response.headers['Access-Control-Max-Age']           = '600'
+    return response
+
+
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        res = make_response('', 200)
+        return add_cors(res)
+
+
+@app.after_request
+def after_request(response):
+    add_cors(response)
+    if request.method != 'OPTIONS':
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options']        = 'DENY'
+        response.headers['X-XSS-Protection']       = '1; mode=block'
+        response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
+        response.headers.pop('Server', None)
+    return response
+
 
 jwt = JWTManager(app)
+
 
 @jwt.expired_token_loader
 def expired_token_callback(jwt_header, jwt_payload):
@@ -54,6 +78,7 @@ def missing_token_callback(reason):
 def revoked_token_callback(jwt_header, jwt_payload):
     return jsonify({'error': 'Token has been revoked', 'code': 'token_revoked'}), 401
 
+
 limiter = Limiter(
     key_func=get_remote_address,
     app=app,
@@ -61,15 +86,6 @@ limiter = Limiter(
     storage_uri='memory://',
 )
 
-@app.after_request
-def add_security_headers(response):
-    if request.method != 'OPTIONS':
-        response.headers['X-Content-Type-Options'] = 'nosniff'
-        response.headers['X-Frame-Options']        = 'DENY'
-        response.headers['X-XSS-Protection']       = '1; mode=block'
-        response.headers['Referrer-Policy']        = 'strict-origin-when-cross-origin'
-        response.headers.pop('Server', None)
-    return response
 
 @app.errorhandler(400)
 def bad_request(e):
@@ -109,6 +125,7 @@ def unhandled_exception(e):
     logger.exception('Unhandled exception: %s', str(e))
     return jsonify({'error': 'Internal server error'}), 500
 
+
 # ── Blueprints ────────────────────────────────────────────────
 from app.routes.auth import auth_bp
 from app.routes.clients import client_bp
@@ -127,6 +144,7 @@ from app.routes.messages import messages_bp
 from app.routes.announcements import announcements_bp
 from app.routes.documents import documents_bp
 from app.routes.domain import domain_bp
+from app.routes.superadmin import superadmin_bp
 
 app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(client_bp,        url_prefix='/api')
@@ -145,8 +163,10 @@ app.register_blueprint(messages_bp,      url_prefix='/api/messages')
 app.register_blueprint(announcements_bp, url_prefix='/api/announcements')
 app.register_blueprint(documents_bp,     url_prefix='/api/documents')
 app.register_blueprint(domain_bp,        url_prefix='/api')
+app.register_blueprint(superadmin_bp,    url_prefix='/api/superadmin')
 
 limiter.limit('10 per minute', methods=['GET','POST','PUT','PATCH','DELETE'])(auth_bp)
+
 
 @app.route('/')
 def index():

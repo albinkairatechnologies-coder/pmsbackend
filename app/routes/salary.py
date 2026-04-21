@@ -104,22 +104,24 @@ def get_coins_summary():
     claims = get_jwt()
     if claims.get('role') != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
-    conn = get_db_connection()
+    org_id = claims.get('organisation_id')
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
-    cursor.execute('''
+    org_f  = "AND u.organisation_id = %s" if org_id is not None else ""
+    params = ([org_id] if org_id is not None else [])
+    cursor.execute(f'''
         SELECT u.id as user_id, u.name, u.role,
                COALESCE(SUM(r.amount), 0) as total_coins,
                COUNT(r.id) as award_count
         FROM users u
         LEFT JOIN user_rewards r ON u.id = r.user_id
-        WHERE u.role != 'client'
+        WHERE u.role != 'client' {org_f}
         GROUP BY u.id, u.name, u.role
         ORDER BY total_coins DESC
-    ''')
+    ''', params)
     rows = cursor.fetchall()
-    # Get coin value
     cursor.execute('SELECT coin_value_rupees FROM coin_settings ORDER BY id DESC LIMIT 1')
-    setting = cursor.fetchone()
+    setting    = cursor.fetchone()
     coin_value = float(setting['coin_value_rupees']) if setting else 1.0
     for row in rows:
         row['rupee_value'] = round(float(row['total_coins']) * coin_value, 2)

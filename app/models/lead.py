@@ -3,14 +3,14 @@ from app.utils.database import get_db_connection
 
 class Lead:
     @staticmethod
-    def create(name, company, phone, email, source, service_interest, notes, assigned_to, created_by):
+    def create(name, company, phone, email, source, service_interest, notes, assigned_to, created_by, organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO leads (name, company, phone, email, source, service_interest, notes, assigned_to, created_by)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (name, company, phone, email, source, service_interest, notes, assigned_to, created_by))
+                INSERT INTO leads (name, company, phone, email, source, service_interest, notes, assigned_to, created_by, organisation_id)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (name, company, phone, email, source, service_interest, notes, assigned_to, created_by, organisation_id))
             conn.commit()
             lead_id = cursor.lastrowid
             cursor.close()
@@ -19,12 +19,12 @@ class Lead:
             conn.close()
 
     @staticmethod
-    def get_all(status=None, assigned_to=None):
+    def get_all(status=None, assigned_to=None, organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
             query = """
-                SELECT l.*, 
+                SELECT l.*,
                     u.name AS assigned_to_name,
                     cb.name AS created_by_name
                 FROM leads l
@@ -33,6 +33,9 @@ class Lead:
                 WHERE 1=1
             """
             params = []
+            if organisation_id is not None:
+                query += " AND l.organisation_id = %s"
+                params.append(organisation_id)
             if status:
                 query += " AND l.status = %s"
                 params.append(status)
@@ -53,7 +56,7 @@ class Lead:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute("""
-                SELECT l.*, 
+                SELECT l.*,
                     u.name AS assigned_to_name,
                     cb.name AS created_by_name
                 FROM leads l
@@ -129,11 +132,13 @@ class Lead:
             conn.close()
 
     @staticmethod
-    def get_stats():
+    def get_stats(organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
+            where = "WHERE organisation_id = %s" if organisation_id is not None else ""
+            params = (organisation_id,) if organisation_id is not None else ()
+            cursor.execute(f"""
                 SELECT
                     COUNT(*) AS total,
                     SUM(status = 'new')         AS new_count,
@@ -142,8 +147,8 @@ class Lead:
                     SUM(status = 'negotiation') AS negotiation_count,
                     SUM(status = 'converted')   AS converted_count,
                     SUM(status = 'lost')        AS lost_count
-                FROM leads
-            """)
+                FROM leads {where}
+            """, params)
             stats = cursor.fetchone()
             cursor.close()
             return stats

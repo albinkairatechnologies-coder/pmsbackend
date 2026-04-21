@@ -43,20 +43,22 @@ def create_worklog():
 @other_bp.route('/worklogs', methods=['GET'])
 @jwt_required()
 def get_worklogs():
-    user_id = int(get_jwt_identity())
-    claims = get_jwt()
-    client_id = request.args.get('client_id')
+    user_id    = int(get_jwt_identity())
+    claims     = get_jwt()
+    org_id     = claims.get('organisation_id')
+    client_id  = request.args.get('client_id')
     start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    end_date   = request.args.get('end_date')
     department = request.args.get('department')
-    emp_id = request.args.get('user_id')
+    emp_id     = request.args.get('user_id')
 
     if claims['role'] in LEAD_ROLES and not client_id:
         logs = WorkLog.get_all_for_admin(
             start_date, end_date,
             client_id=int(client_id) if client_id else None,
             department=department,
-            user_id=int(emp_id) if emp_id else None
+            user_id=int(emp_id) if emp_id else None,
+            organisation_id=org_id
         )
     elif client_id:
         logs = WorkLog.get_by_client(int(client_id), start_date, end_date)

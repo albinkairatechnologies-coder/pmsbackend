@@ -2,6 +2,7 @@ from app.utils.database import get_db_connection
 
 
 class ClientPayment:
+
     @staticmethod
     def add_payment(client_id, amount, payment_date, payment_method, reference, notes, added_by):
         conn = get_db_connection()
@@ -42,14 +43,12 @@ class ClientPayment:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute("""
-                SELECT 
-                    c.id, c.company_name, c.contact_person, c.email, c.phone,
-                    c.deadline, c.status, c.total_amount,
-                    COALESCE(SUM(cp.amount), 0) AS paid_amount
+                SELECT c.id, c.company_name, c.contact_person, c.email, c.phone,
+                       c.deadline, c.status, c.total_amount,
+                       COALESCE(SUM(cp.amount), 0) AS paid_amount
                 FROM clients c
                 LEFT JOIN client_payments cp ON c.id = cp.client_id
-                WHERE c.id = %s
-                GROUP BY c.id
+                WHERE c.id = %s GROUP BY c.id
             """, (client_id,))
             row = cursor.fetchone()
             cursor.close()
@@ -60,20 +59,21 @@ class ClientPayment:
             conn.close()
 
     @staticmethod
-    def get_all_finance_summary():
+    def get_all_finance_summary(organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
-                SELECT 
-                    c.id, c.company_name, c.contact_person, c.email, c.phone,
-                    c.deadline, c.status, c.total_amount,
-                    COALESCE(SUM(cp.amount), 0) AS paid_amount
+            org_f  = "WHERE c.organisation_id = %s" if organisation_id is not None else ""
+            params = ([organisation_id] if organisation_id is not None else [])
+            cursor.execute(f"""
+                SELECT c.id, c.company_name, c.contact_person, c.email, c.phone,
+                       c.deadline, c.status, c.total_amount,
+                       COALESCE(SUM(cp.amount), 0) AS paid_amount
                 FROM clients c
                 LEFT JOIN client_payments cp ON c.id = cp.client_id
-                GROUP BY c.id
-                ORDER BY c.created_at DESC
-            """)
+                {org_f}
+                GROUP BY c.id ORDER BY c.created_at DESC
+            """, params)
             rows = cursor.fetchall()
             cursor.close()
             for row in rows:
@@ -94,24 +94,27 @@ class ClientPayment:
             conn.close()
 
     @staticmethod
-    def get_overall_stats():
+    def get_overall_stats(organisation_id=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor(dictionary=True)
-            cursor.execute("""
+            org_f  = "WHERE c.organisation_id = %s" if organisation_id is not None else ""
+            params = ([organisation_id] if organisation_id is not None else [])
+            cursor.execute(f"""
                 SELECT
-                    COALESCE(SUM(c.total_amount), 0)        AS total_contract,
-                    COALESCE(SUM(cp_sum.paid), 0)           AS total_collected,
+                    COALESCE(SUM(c.total_amount), 0) AS total_contract,
+                    COALESCE(SUM(cp_sum.paid), 0) AS total_collected,
                     COALESCE(SUM(c.total_amount), 0) - COALESCE(SUM(cp_sum.paid), 0) AS total_pending,
-                    COUNT(DISTINCT CASE 
-                        WHEN c.deadline < CURDATE() 
-                        AND COALESCE(cp_sum.paid, 0) < COALESCE(c.total_amount, 0) 
+                    COUNT(DISTINCT CASE
+                        WHEN c.deadline < CURDATE()
+                        AND COALESCE(cp_sum.paid, 0) < COALESCE(c.total_amount, 0)
                         THEN c.id END) AS overdue_count
                 FROM clients c
                 LEFT JOIN (
                     SELECT client_id, SUM(amount) AS paid FROM client_payments GROUP BY client_id
                 ) cp_sum ON c.id = cp_sum.client_id
-            """)
+                {org_f}
+            """, params)
             stats = cursor.fetchone()
             cursor.close()
             return stats

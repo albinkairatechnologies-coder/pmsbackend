@@ -5,6 +5,7 @@ from app.models.task import Task
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
+
 @dashboard_bp.route('/dashboard/admin', methods=['GET'])
 @jwt_required()
 def admin_dashboard():
@@ -12,25 +13,39 @@ def admin_dashboard():
     if claims['role'] not in ['admin', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
-    conn = get_db_connection()
+    org_id = claims.get('organisation_id')
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute("SELECT COUNT(*) as total FROM teams")
+    org_filter     = "WHERE organisation_id = %s" if org_id else ""
+    org_join_users = "AND u.organisation_id = %s" if org_id else ""
+    org_join_teams = "AND t.organisation_id = %s" if org_id else ""
+    p = (org_id,) if org_id else ()
+
+    cursor.execute(f"SELECT COUNT(*) as total FROM teams {org_filter}", p)
     total_teams = cursor.fetchone()['total']
 
-    cursor.execute("SELECT COUNT(*) as total FROM departments")
+    cursor.execute(f"""
+        SELECT COUNT(*) as total FROM departments d
+        JOIN teams t ON d.team_id = t.id
+        {'WHERE t.organisation_id = %s' if org_id else ''}
+    """, p)
     total_departments = cursor.fetchone()['total']
 
-    cursor.execute("SELECT COUNT(*) as total FROM users WHERE role NOT IN ('admin','client')")
+    cursor.execute(f"""
+        SELECT COUNT(*) as total FROM users
+        WHERE role NOT IN ('admin','client') {org_join_users}
+    """, p)
     total_employees = cursor.fetchone()['total']
 
-    cursor.execute("SELECT COUNT(*) as total FROM clients")
+    cursor.execute(f"""
+        SELECT COUNT(*) as total FROM clients
+        {org_filter}
+    """, p)
     total_clients = cursor.fetchone()['total']
 
-    task_stats = Task.get_overview_stats()
-
     # Team performance
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT t.name as team_name,
                COUNT(tk.id) as total_tasks,
                SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) as completed,
@@ -38,24 +53,26 @@ def admin_dashboard():
                SUM(CASE WHEN tk.status='pending' THEN 1 ELSE 0 END) as pending
         FROM teams t
         LEFT JOIN tasks tk ON tk.team_id = t.id
+        {'WHERE t.organisation_id = %s' if org_id else ''}
         GROUP BY t.id
-    """)
+    """, p)
     team_performance = cursor.fetchall()
 
     # Department performance
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT d.name as dept_name, t.name as team_name,
                COUNT(tk.id) as total_tasks,
                SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) as completed
         FROM departments d
         JOIN teams t ON d.team_id = t.id
         LEFT JOIN tasks tk ON tk.department_id = d.id
+        {'WHERE t.organisation_id = %s' if org_id else ''}
         GROUP BY d.id
-    """)
+    """, p)
     dept_performance = cursor.fetchall()
 
     # Employee productivity
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT u.name, u.role, t.name as team_name, d.name as dept_name,
                COUNT(tk.id) as assigned_tasks,
                SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) as completed_tasks,
@@ -64,9 +81,9 @@ def admin_dashboard():
         LEFT JOIN teams t ON u.team_id = t.id
         LEFT JOIN departments d ON u.department_id = d.id
         LEFT JOIN tasks tk ON tk.assigned_to = u.id
-        WHERE u.role NOT IN ('admin','client')
+        WHERE u.role NOT IN ('admin','client') {org_join_users}
         GROUP BY u.id ORDER BY completed_tasks DESC
-    """)
+    """, p)
     employee_productivity = cursor.fetchall()
 
     cursor.close(); conn.close()
@@ -76,7 +93,6 @@ def admin_dashboard():
         "total_departments": total_departments,
         "total_employees": total_employees,
         "total_clients": total_clients,
-        "task_stats": task_stats,
         "team_performance": team_performance,
         "dept_performance": dept_performance,
         "employee_productivity": employee_productivity
@@ -86,15 +102,14 @@ def admin_dashboard():
 @dashboard_bp.route('/dashboard/lead', methods=['GET'])
 @jwt_required()
 def lead_dashboard():
-    claims = get_jwt()
+    claims  = get_jwt()
     user_id = int(get_jwt_identity())
     if claims['role'] not in ['team_lead', 'crm_head', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
-    conn = get_db_connection()
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    # Tasks assigned to this lead
     cursor.execute("""
         SELECT COUNT(*) as total,
                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
@@ -105,7 +120,6 @@ def lead_dashboard():
     """, (user_id, user_id))
     task_stats = cursor.fetchone()
 
-    # Pending approvals (tasks in review assigned by this lead)
     cursor.execute("""
         SELECT t.*, u.name as assigned_name
         FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id
@@ -114,7 +128,6 @@ def lead_dashboard():
     """, (user_id,))
     pending_approvals = cursor.fetchall()
 
-    # Team member performance
     cursor.execute("""
         SELECT u.name, u.role,
                COUNT(t.id) as assigned,
@@ -128,7 +141,6 @@ def lead_dashboard():
     team_performance = cursor.fetchall()
 
     cursor.close(); conn.close()
-
     return jsonify({
         "task_stats": task_stats,
         "pending_approvals": pending_approvals,
@@ -140,8 +152,8 @@ def lead_dashboard():
 @jwt_required()
 def staff_dashboard():
     user_id = int(get_jwt_identity())
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
+    conn    = get_db_connection()
+    cursor  = conn.cursor(dictionary=True)
 
     cursor.execute("""
         SELECT COUNT(*) as total_tasks,
@@ -177,15 +189,18 @@ def generate_report():
     if claims['role'] not in ['admin', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
+    org_id      = claims.get('organisation_id')
     report_type = request.args.get('type')
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
+    start_date  = request.args.get('start_date')
+    end_date    = request.args.get('end_date')
 
-    conn = get_db_connection()
+    conn   = get_db_connection()
     cursor = conn.cursor(dictionary=True)
+    org_filter = "AND u.organisation_id = %s" if org_id else ""
 
     if report_type == 'employee_productivity':
-        cursor.execute("""
+        params = (start_date, end_date) + ((org_id,) if org_id else ())
+        cursor.execute(f"""
             SELECT u.name, u.role, t.name as team_name, d.name as dept_name,
                    COUNT(DISTINCT wl.id) as work_logs,
                    SUM(wl.hours_worked) as total_hours,
@@ -195,19 +210,24 @@ def generate_report():
             LEFT JOIN departments d ON u.department_id = d.id
             LEFT JOIN work_logs wl ON u.id = wl.user_id AND wl.log_date BETWEEN %s AND %s
             LEFT JOIN tasks tk ON u.id = tk.assigned_to AND tk.status = 'completed'
-            WHERE u.role NOT IN ('admin','client')
+            WHERE u.role NOT IN ('admin','client') {org_filter}
             GROUP BY u.id
-        """, (start_date, end_date))
+        """, params)
     elif report_type == 'client_work':
-        cursor.execute("""
+        params = ((org_id,) if org_id else ())
+        org_c  = "WHERE c.organisation_id = %s" if org_id else ""
+        cursor.execute(f"""
             SELECT c.company_name, COUNT(DISTINCT t.id) as total_tasks,
                    SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) as completed_tasks,
                    SUM(t.time_spent) as total_hours, c.status
             FROM clients c LEFT JOIN tasks t ON c.id = t.client_id
+            {org_c}
             GROUP BY c.id
-        """)
+        """, params)
     elif report_type == 'department_performance':
-        cursor.execute("""
+        params = (start_date, end_date) + ((org_id,) if org_id else ())
+        org_t  = "AND t.organisation_id = %s" if org_id else ""
+        cursor.execute(f"""
             SELECT d.name as department, tm.name as team,
                    COUNT(t.id) as total_tasks,
                    SUM(CASE WHEN t.status='completed' THEN 1 ELSE 0 END) as completed,
@@ -215,8 +235,9 @@ def generate_report():
             FROM departments d
             JOIN teams tm ON d.team_id = tm.id
             LEFT JOIN tasks t ON t.department_id = d.id AND t.created_at BETWEEN %s AND %s
+            WHERE 1=1 {org_t}
             GROUP BY d.id
-        """, (start_date, end_date))
+        """, params)
     else:
         cursor.close(); conn.close()
         return jsonify({"error": "Invalid report type"}), 400
