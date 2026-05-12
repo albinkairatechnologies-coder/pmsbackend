@@ -130,12 +130,46 @@ def toggle_like(ann_id):
 @announcements_bp.route('/announcements/<int:ann_id>/view', methods=['POST'])
 @jwt_required()
 def record_view(ann_id):
+    user_id = int(get_jwt_identity())
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("UPDATE announcements SET views = views + 1 WHERE id = %s", (ann_id,))
-    conn.commit()
-    cursor.close(); conn.close()
+    try:
+        cursor.execute(
+            'INSERT IGNORE INTO announcement_views (announcement_id, user_id) VALUES (%s, %s)',
+            (ann_id, user_id)
+        )
+        if cursor.rowcount > 0:
+            cursor.execute("UPDATE announcements SET views = views + 1 WHERE id = %s", (ann_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+    finally:
+        cursor.close(); conn.close()
     return jsonify({"message": "View recorded"}), 200
+
+
+@announcements_bp.route('/announcements/<int:ann_id>/viewers', methods=['GET'])
+@jwt_required()
+def get_viewers(ann_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('''
+            SELECT u.name, u.role, u.profile_image, av.viewed_at
+            FROM announcement_views av
+            JOIN users u ON av.user_id = u.id
+            WHERE av.announcement_id = %s
+            ORDER BY av.viewed_at DESC
+        ''', (ann_id,))
+        viewers = cursor.fetchall() or []
+        for v in viewers:
+            if v.get('viewed_at'):
+                v['viewed_at'] = v['viewed_at'].isoformat()
+    except Exception as e:
+        print(f"Error fetching viewers: {e}")
+        viewers = []
+    cursor.close(); conn.close()
+    return jsonify(viewers), 200
 
 
 @announcements_bp.route('/announcements/<int:ann_id>/pin', methods=['POST'])
@@ -235,3 +269,56 @@ def manage_comments(ann_id):
             except: pass
     cursor.close(); conn.close()
     return jsonify(comments), 200
+
+
+@announcements_bp.route('/comments/<int:comment_id>', methods=['DELETE'])
+@jwt_required()
+def delete_announcement_comment(comment_id):
+    user_id = int(get_jwt_identity())
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('SELECT user_id FROM announcement_comments WHERE id = %s', (comment_id,))
+        comm = cursor.fetchone()
+        if not comm:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Comment not found'}), 404
+        if claims['role'] != 'admin' and comm['user_id'] != user_id:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Unauthorized to delete this comment'}), 403
+        cursor.execute('DELETE FROM announcement_comments WHERE id = %s', (comment_id,))
+        conn.commit()
+        cursor.close(); conn.close()
+        return jsonify({'message': 'Comment deleted'}), 200
+    except Exception as e:
+        conn.rollback(); cursor.close(); conn.close()
+        return jsonify({'error': str(e)}), 500
+
+@announcements_bp.route('/comments/<int:comment_id>', methods=['PUT'])
+@jwt_required()
+def update_announcement_comment(comment_id):
+    user_id = int(get_jwt_identity())
+    data = request.get_json()
+    content = data.get('content')
+    if not content:
+        return jsonify({'error': 'Content cannot be empty'}), 400
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('SELECT user_id FROM announcement_comments WHERE id = %s', (comment_id,))
+        comm = cursor.fetchone()
+        if not comm:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Comment not found'}), 404
+        if comm['user_id'] != user_id:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Unauthorized to edit this comment'}), 403
+        cursor.execute('UPDATE announcement_comments SET content = %s WHERE id = %s', (content, comment_id))
+        conn.commit()
+        cursor.close(); conn.close()
+        return jsonify({'message': 'Comment updated'}), 200
+    except Exception as e:
+        conn.rollback(); cursor.close(); conn.close()
+        return jsonify({'error': str(e)}), 500

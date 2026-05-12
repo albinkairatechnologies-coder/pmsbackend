@@ -57,13 +57,34 @@ def create_task():
             try: Task.add_observer(task_id, int(oid))
             except: pass
 
+        assigner = User.get_by_id(assigned_by)
+        assigner_name = assigner.get('name', 'A Manager') if assigner else "System"
+
         if assigned_to:
-            assigner = User.get_by_id(assigned_by)
             Notification.create(
                 assigned_to,
                 "New Task Assigned",
-                f"{assigner['name']} assigned you: {data['title']}",
-                "task"
+                f"{assigner_name} assigned you: {data['title']}",
+                "task",
+                f"/dashboard/tasks/{task_id}"
+            )
+        
+        for pid in data.get('participant_ids', []):
+            Notification.create(
+                int(pid),
+                "Added to Task",
+                f"{assigner_name} added you as participant to: {data['title']}",
+                "task",
+                f"/dashboard/tasks/{task_id}"
+            )
+
+        for oid in data.get('observer_ids', []):
+            Notification.create(
+                int(oid),
+                "Watching Task",
+                f"{assigner_name} listed you as observer on: {data['title']}",
+                "task",
+                f"/dashboard/tasks/{task_id}"
             )
 
         return jsonify({"message": "Task created", "task_id": task_id}), 201
@@ -173,6 +194,17 @@ def update_task(task_id):
             update_data['assigned_to'] = int(update_data['assigned_to']) if update_data['assigned_to'] else None
 
         Task.update(task_id, updated_by=user_id, **update_data)
+        
+        # Notify new assignee if explicitly updated
+        if 'assigned_to' in update_data and update_data['assigned_to'] and update_data['assigned_to'] != task.get('assigned_to'):
+             u = User.get_by_id(user_id)
+             Notification.create(
+                 update_data['assigned_to'],
+                 "Task Assigned To You",
+                 f"{u.get('name', 'A Lead')} re-assigned task: {task['title']}",
+                 "task",
+                 f"/dashboard/tasks/{task_id}"
+             )
 
         # REWARD LOGIC: AUTOMATIC GOLD COINS on task completion
         if data.get('status') == 'completed' and task.get('assigned_to'):
@@ -291,7 +323,13 @@ def send_task_message(task_id):
 def add_participant(task_id):
     data = request.json
     try:
-        Task.add_participant(task_id, int(data['user_id']))
+        target = int(data['user_id'])
+        Task.add_participant(task_id, target)
+        
+        by_u = User.get_by_id(int(get_jwt_identity()))
+        t = Task.get_by_id(task_id)
+        Notification.create(target, "Invited to Task", f"{by_u.get('name', 'Lead')} invited you to work on: {t['title']}", "task", f"/dashboard/tasks/{task_id}")
+        
         return jsonify({"message": "Participant added"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -302,10 +340,18 @@ def add_participant(task_id):
 def add_observer(task_id):
     data = request.json
     try:
-        Task.add_observer(task_id, int(data['user_id']))
+        target = int(data['user_id'])
+        Task.add_observer(task_id, target)
+        
+        by_u = User.get_by_id(int(get_jwt_identity()))
+        t = Task.get_by_id(task_id)
+        Notification.create(target, "Assigned Observer", f"{by_u.get('name', 'Lead')} made you observer for: {t['title']}", "task", f"/dashboard/tasks/{task_id}")
+        
         return jsonify({"message": "Observer added"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
 @task_bp.route('/tasks/<int:task_id>/participants/<int:user_id>', methods=['DELETE'])
 @jwt_required()
 def remove_participant(task_id, user_id):
@@ -330,3 +376,28 @@ def remove_observer(task_id, user_id):
         return jsonify({"message": "Observer removed"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+@task_bp.route('/tasks/<int:task_id>/messages/delete/<int:msg_id>', methods=['DELETE'])
+@jwt_required()
+def delete_task_message(task_id, msg_id):
+    user_id = int(get_jwt_identity())
+    claims = get_jwt()
+    conn = get_db_connection()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute('SELECT user_id FROM task_messages WHERE id = %s', (msg_id,))
+        msg = cur.fetchone()
+        if not msg:
+            cur.close(); conn.close()
+            return jsonify({'error': 'Message not found'}), 404
+        if claims['role'] != 'admin' and msg['user_id'] != user_id:
+            cur.close(); conn.close()
+            return jsonify({'error': 'Unauthorized to delete this message'}), 403
+        cur.execute('DELETE FROM task_messages WHERE id = %s', (msg_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        return jsonify({'message': 'Message deleted'}), 200
+    except Exception as e:
+        conn.rollback(); cur.close(); conn.close()
+        return jsonify({'error': str(e)}), 500

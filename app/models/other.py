@@ -432,14 +432,14 @@ class CompanySettings:
 
 class Notification:
     @staticmethod
-    def create(user_id, title, message, type='info'):
+    def create(user_id, title, message, type='info', link=None):
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO notifications (user_id, title, message, type)
-                VALUES (%s, %s, %s, %s)
-            """, (user_id, title, message, type))
+                INSERT INTO notifications (user_id, title, message, type, link)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (user_id, title, message, type, link))
             conn.commit()
             cursor.close()
         finally:

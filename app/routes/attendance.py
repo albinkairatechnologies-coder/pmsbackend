@@ -14,11 +14,7 @@ def check_in():
     user_id = int(get_jwt_identity())
     data    = request.json or {}
 
-    # Block double check-in
-    existing = Attendance.get_today(user_id)
-    if existing and existing.get('check_in_time'):
-        return jsonify({'error': 'Already checked in today', 'attendance': existing}), 400
-
+    # Allow overwriting existing check-in to reset the shift as requested
     record = Attendance.check_in(user_id, notes=data.get('notes'))
     return jsonify(record), 201
 

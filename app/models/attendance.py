@@ -54,9 +54,12 @@ class Attendance:
                 INSERT INTO attendance (user_id, date, check_in_time, status, late_by_minutes, notes)
                 VALUES (%s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
-                    check_in_time   = IF(check_in_time IS NULL, VALUES(check_in_time), check_in_time),
-                    status          = IF(check_in_time IS NULL, VALUES(status), status),
-                    late_by_minutes = IF(check_in_time IS NULL, VALUES(late_by_minutes), late_by_minutes)
+                    check_in_time   = VALUES(check_in_time),
+                    status          = VALUES(status),
+                    late_by_minutes = VALUES(late_by_minutes),
+                    check_out_time  = NULL,
+                    total_hours     = NULL,
+                    net_hours       = NULL
             """, (user_id, today, now, status, late_by, notes))
             conn.commit()
             cursor.execute("SELECT * FROM attendance WHERE user_id=%s AND date=%s", (user_id, today))
@@ -75,9 +78,8 @@ class Attendance:
         if not att or not att['check_in_time']:
             cursor.close(); conn.close()
             return None, "No check-in found for today"
-        if att['check_out_time']:
-            cursor.close(); conn.close()
-            return _s(att), "Already checked out"
+        
+        # User can check out again (overwrite last checkout), so we don't block if check_out_time exists.
         check_in = att['check_in_time']
         if isinstance(check_in, str):
             check_in = datetime.fromisoformat(check_in)

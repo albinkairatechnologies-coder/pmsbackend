@@ -259,3 +259,29 @@ def upload_chat_file():
 @jwt_required()
 def download_chat_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
+
+
+@messages_bp.route('/delete/<int:message_id>', methods=['DELETE'])
+@jwt_required()
+def delete_message(message_id):
+    user_id = int(get_jwt_identity())
+    from flask_jwt_extended import get_jwt
+    claims = get_jwt()
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute('SELECT sender_id FROM messages WHERE id = %s', (message_id,))
+        msg = cursor.fetchone()
+        if not msg:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Message not found'}), 404
+        if claims['role'] != 'admin' and msg['sender_id'] != user_id:
+            cursor.close(); conn.close()
+            return jsonify({'error': 'Unauthorized to delete this message'}), 403
+        cursor.execute('DELETE FROM messages WHERE id = %s', (message_id,))
+        conn.commit()
+        cursor.close(); conn.close()
+        return jsonify({'message': 'Message deleted'}), 200
+    except Exception as e:
+        conn.rollback(); cursor.close(); conn.close()
+        return jsonify({'error': str(e)}), 500

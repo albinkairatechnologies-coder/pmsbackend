@@ -40,7 +40,7 @@ class Notification:
         cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id FROM users
-            WHERE role IN ('admin','team_lead','marketing_head','crm')
+            WHERE role IN ('admin','team_lead','marketing_head','crm','crm_head')
         """)
         admins = cursor.fetchall()
         for a in admins:
