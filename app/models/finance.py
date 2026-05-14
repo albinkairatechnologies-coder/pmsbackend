@@ -152,3 +152,71 @@ class ClientPayment:
             return payments
         finally:
             conn.close()
+    @staticmethod
+    def get_full_analytics(organisation_id=None):
+        conn = get_db_connection()
+        try:
+            cursor = conn.cursor(dictionary=True)
+            org_f  = "WHERE organisation_id = %s" if organisation_id is not None else ""
+            params = ([organisation_id] if organisation_id is not None else [])
+            
+            # Revenue from payments
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(amount), 0) as total_revenue
+                FROM client_payments cp
+                JOIN clients c ON cp.client_id = c.id
+                {org_f.replace('organisation_id', 'c.organisation_id')}
+            """, params)
+            revenue = cursor.fetchone()['total_revenue']
+
+            # Expenses
+            cursor.execute(f"""
+                SELECT COALESCE(SUM(amount), 0) as total_expenses
+                FROM expenses {org_f}
+            """, params)
+            expenses = cursor.fetchone()['total_expenses']
+
+            # Monthly data for charts
+            cursor.execute(f"""
+                SELECT 
+                    months.m as month,
+                    COALESCE(rev.amount, 0) as revenue,
+                    COALESCE(exp.amount, 0) as expense
+                FROM (
+                    SELECT DATE_FORMAT(CURDATE(), '%Y-%m') as m
+                    UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')
+                    UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m')
+                    UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m')
+                    UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 4 MONTH), '%Y-%m')
+                    UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m')
+                ) months
+                LEFT JOIN (
+                    SELECT DATE_FORMAT(payment_date, '%Y-%m') as m, SUM(amount) as amount
+                    FROM client_payments cp
+                    JOIN clients c ON cp.client_id = c.id
+                    {org_f.replace('organisation_id', 'c.organisation_id')}
+                    GROUP BY m
+                ) rev ON months.m = rev.m
+                LEFT JOIN (
+                    SELECT DATE_FORMAT(expense_date, '%Y-%m') as m, SUM(amount) as amount
+                    FROM expenses {org_f}
+                    GROUP BY m
+                ) exp ON months.m = exp.m
+                ORDER BY months.m ASC
+            """, params * 3)
+            monthly_data = cursor.fetchall()
+
+            cursor.close()
+            
+            net_profit = float(revenue) - float(expenses)
+            roi = (net_profit / float(expenses) * 100) if expenses > 0 else 0
+
+            return {
+                "total_revenue": float(revenue),
+                "total_expenses": float(expenses),
+                "net_profit": net_profit,
+                "roi_percentage": roi,
+                "monthly_data": monthly_data
+            }
+        finally:
+            conn.close()

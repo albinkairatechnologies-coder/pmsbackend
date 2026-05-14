@@ -1,4 +1,26 @@
 from app.utils.database import get_db_connection
+from datetime import datetime, date
+from decimal import Decimal
+import json
+
+def _s(row):
+    if row is None:
+        return None
+    out = {}
+    for k, v in row.items():
+        if isinstance(v, (datetime, date)):
+            out[k] = v.isoformat()
+        elif isinstance(v, Decimal):
+            out[k] = float(v)
+        elif isinstance(v, (bytes, bytearray)):
+            try:
+                out[k] = json.loads(v)
+            except Exception:
+                out[k] = v.decode('utf-8', errors='replace')
+        else:
+            out[k] = v
+    return out
+
 
 class Client:
     @staticmethod
@@ -28,7 +50,7 @@ class Client:
             cursor.execute("SELECT * FROM clients WHERE id = %s", (client_id,))
             client = cursor.fetchone()
             cursor.close()
-            return client
+            return _s(client)
         finally:
             conn.close()
 
@@ -48,7 +70,7 @@ class Client:
             cursor.execute(f"SELECT * FROM clients {where} ORDER BY created_at DESC", params)
             clients = cursor.fetchall()
             cursor.close()
-            return clients
+            return [_s(c) for c in clients]
         finally:
             conn.close()
 
@@ -60,7 +82,7 @@ class Client:
             cursor.execute("SELECT * FROM clients WHERE user_id = %s", (user_id,))
             client = cursor.fetchone()
             cursor.close()
-            return client
+            return _s(client)
         finally:
             conn.close()
 
@@ -108,7 +130,7 @@ class Client:
             """, (client_id,))
             team = cursor.fetchall()
             cursor.close()
-            return team
+            return [_s(t) for t in team]
         finally:
             conn.close()
 
@@ -131,6 +153,6 @@ class Client:
                 """, (term, term, term))
             clients = cursor.fetchall()
             cursor.close()
-            return clients
+            return [_s(c) for c in clients]
         finally:
             conn.close()

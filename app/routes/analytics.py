@@ -221,3 +221,101 @@ def hr_analytics():
         'permission_stats':     permission_stats,
         'top_late':             top_late,
     }), 200
+
+
+@analytics_bp.route('/analytics/marketing', methods=['GET'])
+@jwt_required()
+def marketing_analytics():
+    user = get_jwt()
+    org_id = user.get('organisation_id')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # 1. Campaign Stats
+    cursor.execute("""
+        SELECT platform, COUNT(*) as count, SUM(budget) as budget, SUM(spend) as spend, 
+               SUM(revenue) as revenue, SUM(leads_generated) as leads, SUM(conversions) as conversions
+        FROM campaigns WHERE organisation_id = %s OR %s IS NULL
+        GROUP BY platform
+    """, (org_id, org_id))
+    campaign_stats = [_s(r) for r in cursor.fetchall()]
+
+    # 2. Lead Conversion Funnel
+    cursor.execute("""
+        SELECT status, COUNT(*) as count
+        FROM leads WHERE organisation_id = %s OR %s IS NULL
+        GROUP BY status
+    """, (org_id, org_id))
+    lead_funnel = [_s(r) for r in cursor.fetchall()]
+
+    # 3. Financial Summary
+    cursor.execute("""
+        SELECT 
+            (SELECT COALESCE(SUM(amount), 0) FROM client_payments cp JOIN clients c ON cp.client_id = c.id WHERE c.organisation_id = %s OR %s IS NULL) as revenue,
+            (SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE organisation_id = %s OR %s IS NULL) as expenses
+    """, (org_id, org_id, org_id, org_id))
+    finance_summary = _s(cursor.fetchone())
+    
+    # 4. Employee-wise Lead Generation
+    cursor.execute("""
+        SELECT u.name, COUNT(l.id) as leads_count, SUM(l.status = 'converted') as conversions
+        FROM users u
+        LEFT JOIN leads l ON u.id = l.created_by
+        WHERE u.organisation_id = %s OR %s IS NULL
+        GROUP BY u.id
+        HAVING leads_count > 0
+        ORDER BY leads_count DESC
+    """, (org_id, org_id))
+    employee_performance = [_s(r) for r in cursor.fetchall()]
+
+    # 5. Monthly Trend (Last 6 Months)
+    cursor.execute("""
+        SELECT 
+            months.m as month,
+            COALESCE(rev.amount, 0) as revenue,
+            COALESCE(exp.amount, 0) as expense
+        FROM (
+            SELECT DATE_FORMAT(CURDATE(), '%Y-%m') as m
+            UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 1 MONTH), '%Y-%m')
+            UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 2 MONTH), '%Y-%m')
+            UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 3 MONTH), '%Y-%m')
+            UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 4 MONTH), '%Y-%m')
+            UNION SELECT DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL 5 MONTH), '%Y-%m')
+        ) months
+        LEFT JOIN (
+            SELECT DATE_FORMAT(payment_date, '%Y-%m') as m, SUM(amount) as amount
+            FROM client_payments cp
+            JOIN clients c ON cp.client_id = c.id
+            WHERE c.organisation_id = %s OR %s IS NULL
+            GROUP BY m
+        ) rev ON months.m = rev.m
+        LEFT JOIN (
+            SELECT DATE_FORMAT(expense_date, '%Y-%m') as m, SUM(amount) as amount
+            FROM expenses 
+            WHERE organisation_id = %s OR %s IS NULL
+            GROUP BY m
+        ) exp ON months.m = exp.m
+        ORDER BY months.m ASC
+    """, (org_id, org_id, org_id, org_id))
+    monthly_trend = [_s(r) for r in cursor.fetchall()]
+
+    cursor.close(); conn.close()
+
+    rev = float(finance_summary['revenue'])
+    exp = float(finance_summary['expenses'])
+    profit = rev - exp
+    roi = (profit / exp * 100) if exp > 0 else 0
+
+    return jsonify({
+        "campaigns": campaign_stats,
+        "leads": lead_funnel,
+        "finance": {
+            "total_revenue": rev,
+            "total_expenses": exp,
+            "net_profit": profit,
+            "roi_percentage": roi,
+            "monthly_trend": monthly_trend
+        },
+        "employee_performance": employee_performance
+    }), 200

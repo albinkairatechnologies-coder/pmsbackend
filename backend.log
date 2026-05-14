@@ -1,0 +1,16 @@
+2026-05-13 13:04:43,686 [INFO] kairaflow: ALLOWED_ORIGINS: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+DEBUG: PROFILE_UPLOAD_FOLDER is c:\xampp\hardik\htdocs\newpms\backend\uploads\profiles
+ * Serving Flask app 'app'
+ * Debug mode: on
+2026-05-13 13:04:44,114 [INFO] werkzeug: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.56:5000
+2026-05-13 13:04:44,114 [INFO] werkzeug: [33mPress CTRL+C to quit[0m
+2026-05-13 13:04:44,116 [INFO] werkzeug:  * Restarting with stat
+2026-05-13 13:04:44,764 [INFO] kairaflow: ALLOWED_ORIGINS: ['http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-05-13 13:04:45,162 [WARNING] werkzeug:  * Debugger is active!
+2026-05-13 13:04:45,167 [INFO] werkzeug:  * Debugger PIN: 119-698-776
+2026-05-13 14:56:17,446 [INFO] werkzeug:  * Detected change in 'c:\\xampp\\hardik\\htdocs\\newpms\\backend\\app\\routes\\proposals.py', reloading
+DEBUG: PROFILE_UPLOAD_FOLDER is c:\xampp\hardik\htdocs\newpms\backend\uploads\profiles
+Exception in thread Thread-3 (serve_forever):

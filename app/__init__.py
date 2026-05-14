@@ -152,6 +152,8 @@ from app.routes.calendar import calendar_bp
 from app.routes.client_profile import client_profile_bp
 from app.routes.lead_activity import lead_activity_bp
 from app.routes.finance import finance_bp
+from app.routes.campaigns import campaigns_bp
+from app.routes.expenses import expenses_bp
 
 app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(client_bp,        url_prefix='/api')
@@ -178,6 +180,8 @@ app.register_blueprint(calendar_bp,      url_prefix='/api')
 app.register_blueprint(client_profile_bp, url_prefix='/api')
 app.register_blueprint(lead_activity_bp, url_prefix='/api')
 app.register_blueprint(finance_bp,       url_prefix='/api')
+app.register_blueprint(campaigns_bp,     url_prefix='/api')
+app.register_blueprint(expenses_bp,      url_prefix='/api')
 
 limiter.limit('10 per minute', methods=['GET','POST','PUT','PATCH','DELETE'])(auth_bp)
 

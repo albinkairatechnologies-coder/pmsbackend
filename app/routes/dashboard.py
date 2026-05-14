@@ -33,7 +33,7 @@ def admin_dashboard():
     total_departments = cursor.fetchone()['total']
 
     cursor.execute(f"""
-        SELECT COUNT(*) as total FROM users
+        SELECT COUNT(*) as total FROM users u
         WHERE role NOT IN ('admin','client') {org_join_users}
     """, p)
     total_employees = cursor.fetchone()['total']
