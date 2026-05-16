@@ -44,28 +44,34 @@ def admin_dashboard():
     """, p)
     total_clients = cursor.fetchone()['total']
 
-    # Team performance
+    # Team performance - Aggregates tasks via implicit/explicit user relationships
     cursor.execute(f"""
         SELECT t.name as team_name,
                COUNT(tk.id) as total_tasks,
-               SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) as completed,
-               SUM(CASE WHEN tk.status='in_progress' THEN 1 ELSE 0 END) as in_progress,
-               SUM(CASE WHEN tk.status='pending' THEN 1 ELSE 0 END) as pending
+               CAST(SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) AS SIGNED) as completed,
+               CAST(SUM(CASE WHEN tk.status='in_progress' THEN 1 ELSE 0 END) AS SIGNED) as in_progress,
+               CAST(SUM(CASE WHEN tk.status='pending' THEN 1 ELSE 0 END) AS SIGNED) as pending
         FROM teams t
-        LEFT JOIN tasks tk ON tk.team_id = t.id
+        LEFT JOIN (
+            SELECT u.id as user_id, COALESCE(u.team_id, d.team_id) as calculated_team_id
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+        ) ut ON ut.calculated_team_id = t.id
+        LEFT JOIN tasks tk ON tk.assigned_to = ut.user_id
         {'WHERE t.organisation_id = %s' if org_id else ''}
         GROUP BY t.id
     """, p)
     team_performance = cursor.fetchall()
 
-    # Department performance
+    # Department performance - Aggregates tasks via assigned user departments
     cursor.execute(f"""
         SELECT d.name as dept_name, t.name as team_name,
                COUNT(tk.id) as total_tasks,
-               SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) as completed
+               CAST(SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END) AS SIGNED) as completed
         FROM departments d
         JOIN teams t ON d.team_id = t.id
-        LEFT JOIN tasks tk ON tk.department_id = d.id
+        LEFT JOIN users u ON u.department_id = d.id
+        LEFT JOIN tasks tk ON tk.assigned_to = u.id
         {'WHERE t.organisation_id = %s' if org_id else ''}
         GROUP BY d.id
     """, p)

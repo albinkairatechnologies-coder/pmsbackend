@@ -230,6 +230,7 @@ def send_proposal():
         email        = client.get('email'),
         phone        = client.get('phone'),
         project_type = data.get('template_name'),
+        proposal_text = data.get('proposal_text'),
         status       = 'draft',
     )
 
@@ -241,6 +242,7 @@ def send_proposal():
         template_name = data['template_name'],
         line_items    = data['line_items'],
         total_amount  = float(data['total_amount']),
+        proposal_text = data.get('proposal_text'),
     )
     if err:
         return jsonify({'error': err}), 400

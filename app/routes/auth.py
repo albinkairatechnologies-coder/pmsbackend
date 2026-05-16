@@ -109,6 +109,12 @@ def get_current_user():
         except Exception:
             pass
     user.pop('profile_image_data', None)
+    
+    from datetime import datetime, date
+    for k, v in user.items():
+        if isinstance(v, (datetime, date)):
+            user[k] = v.isoformat()
+            
     return jsonify(user), 200
 
 
