@@ -92,6 +92,42 @@ def create_task():
         return jsonify({"error": str(e)}), 400
 
 
+@task_bp.route('/tasks/my-count', methods=['GET'])
+@jwt_required()
+def get_my_task_count():
+    user_id = int(get_jwt_identity())
+    claims  = get_jwt()
+    org_id  = claims.get('organisation_id')
+    conn    = get_db_connection()
+    cursor  = conn.cursor()
+    try:
+        role = claims.get('role', '')
+        if role == 'admin':
+            org_f = "AND t.organisation_id = %s" if org_id is not None else ""
+            params = ([org_id] if org_id is not None else [])
+            cursor.execute(f'''
+                SELECT COUNT(*) FROM tasks t
+                WHERE t.status IN ('pending', 'in_progress') {org_f}
+            ''', params)
+        elif role in LEAD_ROLES:
+            cursor.execute('''
+                SELECT COUNT(*) FROM tasks t
+                WHERE t.status IN ('pending', 'in_progress')
+                AND (t.assignee_id = %s OR t.created_by = %s)
+            ''', (user_id, user_id))
+        else:
+            cursor.execute('''
+                SELECT COUNT(*) FROM tasks t
+                WHERE t.assignee_id = %s AND t.status IN ('pending', 'in_progress')
+            ''', (user_id,))
+        count = cursor.fetchone()[0]
+    except Exception:
+        count = 0
+    finally:
+        cursor.close(); conn.close()
+    return jsonify({'count': count}), 200
+
+
 @task_bp.route('/tasks', methods=['GET'])
 @jwt_required()
 def get_tasks():

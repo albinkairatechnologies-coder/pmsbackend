@@ -7,6 +7,28 @@ from app.models.notification import Notification
 announcements_bp = Blueprint('announcements', __name__)
 
 
+@announcements_bp.route('/announcements/unread-count', methods=['GET'])
+@jwt_required()
+def get_unread_count():
+    user_id = int(get_jwt_identity())
+    claims  = get_jwt()
+    org_id  = claims.get('organisation_id')
+    conn    = get_db_connection()
+    cursor  = conn.cursor()
+    org_f   = "AND a.organisation_id = %s" if org_id is not None else ""
+    params  = ([user_id, org_id] if org_id is not None else [user_id])
+    cursor.execute(f'''
+        SELECT COUNT(*) FROM announcements a
+        WHERE 1=1 {org_f}
+        AND a.id NOT IN (
+            SELECT announcement_id FROM announcement_views WHERE user_id = %s
+        )
+    ''', ([org_id, user_id] if org_id is not None else [user_id]))
+    count = cursor.fetchone()[0]
+    cursor.close(); conn.close()
+    return jsonify({'count': count}), 200
+
+
 @announcements_bp.route('/announcements', methods=['GET'])
 @jwt_required()
 def get_announcements():
