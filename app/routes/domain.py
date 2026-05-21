@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 domain_bp = Blueprint('domain', __name__)
 
-ALLOWED_ROLES = ['admin', 'crm_head', 'marketing_head', 'team_lead']
+ALLOWED_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head', 'team_lead']
 
 
 @domain_bp.route('/domains/alerts', methods=['GET'])
@@ -84,7 +84,7 @@ def update_domain(domain_id):
 @jwt_required()
 def delete_domain(domain_id):
     claims = get_jwt()
-    if claims['role'] not in ['admin', 'marketing_head']:
+    if claims['role'] not in ['admin', 'bdm', 'marketing_head']:
         return jsonify({'error': 'Unauthorized'}), 403
     Domain.delete(domain_id)
     return jsonify({'message': 'Domain deleted'}), 200

@@ -9,7 +9,7 @@ other_bp = Blueprint('other', __name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-LEAD_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 
 
 @other_bp.route('/worklogs', methods=['POST'])

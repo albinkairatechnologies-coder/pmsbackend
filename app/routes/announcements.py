@@ -73,7 +73,7 @@ def create_announcement():
     user_id = int(get_jwt_identity())
     claims  = get_jwt()
     org_id  = claims.get('organisation_id')
-    if claims.get('role') not in ['admin', 'superadmin', 'marketing_head', 'crm_head', 'crm', 'team_lead', 'hr']:
+    if claims.get('role') not in ['admin', 'bdm', 'superadmin', 'marketing_head', 'crm_head', 'crm', 'team_lead', 'hr']:
         return jsonify({'error': 'Only leadership can create announcements'}), 403
     data    = request.get_json()
     title   = data.get('title')

@@ -10,7 +10,7 @@ dashboard_bp = Blueprint('dashboard', __name__)
 @jwt_required()
 def admin_dashboard():
     claims = get_jwt()
-    if claims['role'] not in ['admin', 'marketing_head']:
+    if claims['role'] not in ['admin', 'bdm', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
     org_id = claims.get('organisation_id')
@@ -110,7 +110,7 @@ def admin_dashboard():
 def lead_dashboard():
     claims  = get_jwt()
     user_id = int(get_jwt_identity())
-    if claims['role'] not in ['team_lead', 'crm_head', 'marketing_head']:
+    if claims['role'] not in ['bdm', 'team_lead', 'crm_head', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
     conn   = get_db_connection()
@@ -192,7 +192,7 @@ def staff_dashboard():
 @jwt_required()
 def generate_report():
     claims = get_jwt()
-    if claims['role'] not in ['admin', 'marketing_head']:
+    if claims['role'] not in ['admin', 'bdm', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
     org_id      = claims.get('organisation_id')

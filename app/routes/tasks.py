@@ -8,7 +8,7 @@ from datetime import datetime
 
 task_bp = Blueprint('task', __name__)
 
-LEAD_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 
 @task_bp.route('/tasks', methods=['POST'])
 @jwt_required()

@@ -5,7 +5,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 eod_bp = Blueprint('eod', __name__)
-ADMIN_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+ADMIN_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 IST = ZoneInfo('Asia/Kolkata')
 
 def today_ist():

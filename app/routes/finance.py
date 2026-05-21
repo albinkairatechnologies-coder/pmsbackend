@@ -5,7 +5,7 @@ from app.models.client import Client
 
 finance_bp = Blueprint('finance', __name__)
 
-ALLOWED_ROLES = ['admin', 'crm', 'crm_head', 'marketing_head']
+ALLOWED_ROLES = ['admin', 'bdm', 'crm', 'crm_head', 'marketing_head']
 
 
 @finance_bp.route('/finance/summary', methods=['GET'])

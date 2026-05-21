@@ -7,7 +7,7 @@ from datetime import datetime
 
 reports_bp = Blueprint('reports', __name__)
 
-ADMIN_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+ADMIN_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 
 
 def _serialize(rows):

@@ -173,7 +173,7 @@ def get_user_rewards():
 @jwt_required()
 def get_salary_configs():
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'marketing_head', 'crm_head', 'team_lead']:
+    if claims.get('role') not in ['admin', 'bdm', 'marketing_head', 'crm_head', 'team_lead']:
         return jsonify({"error": "Unauthorized"}), 403
     
     configs = Salary.get_configs()
@@ -183,7 +183,7 @@ def get_salary_configs():
 @jwt_required()
 def update_salary_config():
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'marketing_head']:
+    if claims.get('role') not in ['admin', 'bdm', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.json
@@ -201,7 +201,7 @@ def update_salary_config():
 @jwt_required()
 def pay_salary():
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'marketing_head']:
+    if claims.get('role') not in ['admin', 'bdm', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
     
     data = request.json
@@ -221,7 +221,7 @@ def pay_salary():
 @jwt_required()
 def get_salary_history():
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'marketing_head', 'crm_head', 'team_lead']:
+    if claims.get('role') not in ['admin', 'bdm', 'marketing_head', 'crm_head', 'team_lead']:
         return jsonify({"error": "Unauthorized"}), 403
     
     history = Salary.get_history()
