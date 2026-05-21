@@ -1,0 +1,26 @@
+# Virtual environment
+Include/
+Lib/
+Scripts/
+pyvenv.cfg
+venv/
+*.log
+
+
+# Secrets
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# DB dumps
+*.sql
+
+# Uploads (optional - remove if you want to track sample files)
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
