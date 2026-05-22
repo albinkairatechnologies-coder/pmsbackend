@@ -153,16 +153,24 @@ def get_org_chart():
     result = []
     for team in teams:
         depts = Department.get_all(team['id'], org_id=org_id)
-        team_leads = User.get_all(team_id=team['id'], role='team_lead', organisation_id=org_id)
+        team_members_all = User.get_all(team_id=team['id'], organisation_id=org_id)
+        
+        # Only show in team leads if they don't belong to a department
+        team_leads = [m for m in team_members_all if m['role'] in ('team_lead', 'crm_head', 'marketing_head', 'bdm') and m.get('department_id') is None]
+        
+        # Regular members with no department
+        unassigned_members = [m for m in team_members_all if m['role'] not in ('team_lead', 'crm_head', 'marketing_head', 'bdm', 'admin') and m.get('department_id') is None]
+        
         team_data = {
             **team,
             'leads': team_leads,
+            'unassigned_members': unassigned_members,
             'departments': []
         }
         for dept in depts:
-            dept_leads = User.get_all(department_id=dept['id'], role='team_lead', organisation_id=org_id)
-            dept_members = User.get_all(department_id=dept['id'], organisation_id=org_id)
-            dept_members = [m for m in dept_members if m['role'] not in ('team_lead', 'crm_head')]
+            dept_members_all = User.get_all(department_id=dept['id'], organisation_id=org_id)
+            dept_leads = [m for m in dept_members_all if m['role'] in ('team_lead', 'crm_head', 'marketing_head', 'bdm')]
+            dept_members = [m for m in dept_members_all if m['role'] not in ('team_lead', 'crm_head', 'marketing_head', 'bdm', 'admin')]
             team_data['departments'].append({
                 **dept,
                 'leads': dept_leads,

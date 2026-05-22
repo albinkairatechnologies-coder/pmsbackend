@@ -7,6 +7,7 @@ import os, json, urllib.request, urllib.error
 proposals_bp = Blueprint('proposals', __name__)
 
 ALLOWED_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head', 'team_lead']
+ALLOWED_INVOICE_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head']
 
 # ── AI helper ─────────────────────────────────────────────────
 
@@ -273,7 +274,7 @@ def mark_proposal_viewed(pid):
 @jwt_required()
 def create_invoice():
     claims = get_jwt()
-    if claims['role'] not in ALLOWED_ROLES:
+    if claims['role'] not in ALLOWED_INVOICE_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
     user_id = int(get_jwt_identity())
     data    = request.json or {}
@@ -286,7 +287,7 @@ def create_invoice():
 def get_invoices():
     claims  = get_jwt()
     user_id = int(get_jwt_identity())
-    if claims['role'] not in ALLOWED_ROLES:
+    if claims['role'] not in ALLOWED_INVOICE_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
     by        = None if claims['role'] == 'admin' else user_id
     status    = request.args.get('status')
@@ -303,7 +304,7 @@ def get_invoices():
 @jwt_required()
 def get_invoice(iid):
     claims = get_jwt()
-    if claims['role'] not in ALLOWED_ROLES:
+    if claims['role'] not in ALLOWED_INVOICE_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
     row = Invoice.get_by_id(iid)
     if not row:
@@ -315,7 +316,7 @@ def get_invoice(iid):
 @jwt_required()
 def update_invoice(iid):
     claims = get_jwt()
-    if claims['role'] not in ALLOWED_ROLES:
+    if claims['role'] not in ALLOWED_INVOICE_ROLES:
         return jsonify({'error': 'Unauthorized'}), 403
     Invoice.update(iid, **request.json)
     return jsonify(Invoice.get_by_id(iid)), 200

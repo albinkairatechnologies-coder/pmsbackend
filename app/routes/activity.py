@@ -4,7 +4,7 @@ from app.models.activity import ActivityLog
 
 activity_bp = Blueprint('activity', __name__)
 
-ADMIN_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+ADMIN_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 
 
 # ── Heartbeat (every 30s from every logged-in employee) ───────

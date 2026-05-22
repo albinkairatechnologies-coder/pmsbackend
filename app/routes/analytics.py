@@ -6,7 +6,7 @@ from decimal import Decimal
 
 analytics_bp = Blueprint('analytics', __name__)
 
-LEAD_ROLES = ['admin', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
 
 
 def _s(row):

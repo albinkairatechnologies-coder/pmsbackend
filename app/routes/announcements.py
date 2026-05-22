@@ -198,7 +198,7 @@ def get_viewers(ann_id):
 @jwt_required()
 def toggle_pin(ann_id):
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'superadmin', 'crm_head', 'marketing_head']:
+    if claims.get('role') not in ['admin', 'superadmin', 'bdm', 'crm_head', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -244,7 +244,7 @@ def vote_poll(ann_id):
 @jwt_required()
 def manage_announcement(ann_id):
     claims = get_jwt()
-    if claims.get('role') not in ['admin', 'superadmin', 'marketing_head', 'crm_head', 'team_lead']:
+    if claims.get('role') not in ['admin', 'superadmin', 'bdm', 'marketing_head', 'crm_head', 'team_lead']:
         return jsonify({'error': 'Unauthorized'}), 403
     conn   = get_db_connection()
     cursor = conn.cursor()
