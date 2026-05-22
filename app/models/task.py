@@ -121,6 +121,28 @@ class Task:
         return tasks
 
     @staticmethod
+    def get_pipeline_stages(task_id):
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("""
+                SELECT stage_name, status, start_date, end_date, responsible_person_id
+                FROM task_pipeline_stages
+                WHERE task_id = %s
+            """, (task_id,))
+            stages = cursor.fetchall()
+            for s in stages:
+                if s.get('start_date'):
+                    s['start_date'] = s['start_date'].isoformat()
+                if s.get('end_date'):
+                    s['end_date'] = s['end_date'].isoformat()
+            return stages
+        except Exception:
+            return []
+        finally:
+            cursor.close(); conn.close()
+
+    @staticmethod
     def get_by_client(client_id):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
@@ -136,6 +158,10 @@ class Task:
         """, (client_id,))
         tasks = cursor.fetchall()
         cursor.close(); conn.close()
+
+        # Attach pipeline stages to each task for status tracking
+        for t in tasks:
+            t['pipeline_stages'] = Task.get_pipeline_stages(t['id'])
         return tasks
 
     @staticmethod

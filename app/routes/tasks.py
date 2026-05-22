@@ -5,6 +5,7 @@ from app.models.other import Comment, Notification
 from app.models.user import User
 from app.utils.database import get_db_connection
 from datetime import datetime
+from app.utils.redis import cache
 
 task_bp = Blueprint('task', __name__)
 
@@ -86,6 +87,14 @@ def create_task():
                 "task",
                 f"/dashboard/tasks/{task_id}"
             )
+
+        org_id = claims.get('organisation_id')
+        client_id = data.get('client_id')
+        if org_id:
+            cache.delete_pattern(f"clients:org_{org_id}:*")
+            cache.delete_pattern(f"clients_search:org_{org_id}:*")
+        if client_id:
+            cache.delete(f"client:id_{client_id}")
 
         return jsonify({"message": "Task created", "task_id": task_id}), 201
     except Exception as e:
@@ -181,6 +190,11 @@ def get_task(task_id):
     from datetime import datetime, date
     from decimal import Decimal
 
+    cache_key = f"task:id_{task_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached), 200
+
     task = Task.get_by_id(task_id)
     if not task:
         return jsonify({"error": "Task not found"}), 404
@@ -199,6 +213,8 @@ def get_task(task_id):
     serialized['activity']     = Task.get_activity(task_id)
     serialized['participants'] = Task.get_participants(task_id)
     serialized['observers']    = Task.get_observers(task_id)
+    
+    cache.set(cache_key, serialized, timeout=10)
     return jsonify(serialized), 200
 
 
@@ -282,6 +298,16 @@ def update_task(task_id):
             conn.commit()
             cursor.close(); cursor2.close(); conn.close()
 
+        cache.delete(f"task:id_{task_id}")
+        cache.delete(f"pipeline:task_{task_id}")
+        org_id = claims.get('organisation_id')
+        client_id = task.get('client_id') or data.get('client_id')
+        if org_id:
+            cache.delete_pattern(f"clients:org_{org_id}:*")
+            cache.delete_pattern(f"clients_search:org_{org_id}:*")
+        if client_id:
+            cache.delete(f"client:id_{client_id}")
+
         return jsonify({"message": "Task updated"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -293,11 +319,24 @@ def delete_task(task_id):
     claims = get_jwt()
     if claims['role'] != 'admin':
         return jsonify({"error": "Unauthorized"}), 403
+    task = Task.get_by_id(task_id)
     conn = __import__('app.utils.database', fromlist=['get_db_connection']).get_db_connection()
     cursor = conn.cursor()
     cursor.execute("DELETE FROM tasks WHERE id = %s", (task_id,))
     conn.commit()
     cursor.close(); conn.close()
+
+    cache.delete(f"task:id_{task_id}")
+    cache.delete(f"pipeline:task_{task_id}")
+    if task:
+        org_id = task.get('organisation_id')
+        client_id = task.get('client_id')
+        if org_id:
+            cache.delete_pattern(f"clients:org_{org_id}:*")
+            cache.delete_pattern(f"clients_search:org_{org_id}:*")
+        if client_id:
+            cache.delete(f"client:id_{client_id}")
+
     return jsonify({"message": "Task deleted"}), 200
 
 
@@ -315,6 +354,7 @@ def add_comment(task_id):
         cursor.execute("INSERT INTO task_activity (task_id, user_id, action) VALUES (%s, %s, 'commented')", (task_id, user_id))
         conn.commit()
         cursor.close(); conn.close()
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Comment added"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -372,6 +412,7 @@ def add_participant(task_id):
         t = Task.get_by_id(task_id)
         Notification.create(target, "Invited to Task", f"{by_u.get('name', 'Lead')} invited you to work on: {t['title']}", "task", f"/dashboard/tasks/{task_id}")
         
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Participant added"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -389,6 +430,7 @@ def add_observer(task_id):
         t = Task.get_by_id(task_id)
         Notification.create(target, "Assigned Observer", f"{by_u.get('name', 'Lead')} made you observer for: {t['title']}", "task", f"/dashboard/tasks/{task_id}")
         
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Observer added"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -402,6 +444,7 @@ def remove_participant(task_id, user_id):
         return jsonify({"error": "Unauthorized"}), 403
     try:
         Task.remove_participant(task_id, user_id)
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Participant removed"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -415,6 +458,7 @@ def remove_observer(task_id, user_id):
         return jsonify({"error": "Unauthorized"}), 403
     try:
         Task.remove_observer(task_id, user_id)
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Observer removed"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -547,6 +591,7 @@ def create_subtask(task_id):
                 f"/dashboard/tasks/{task_id}"
             )
 
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Subtask created", "id": subtask_id}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -600,6 +645,7 @@ def update_subtask(task_id, subtask_id):
             """, (task_id, user_id, action, old_subtask['title']))
         conn.commit()
 
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Subtask updated"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -625,6 +671,7 @@ def delete_subtask(task_id, subtask_id):
             VALUES (%s, %s, 'deleted subtask', %s)
         """, (task_id, user_id, sub['title']))
         conn.commit()
+        cache.delete(f"task:id_{task_id}")
         return jsonify({"message": "Subtask deleted"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -637,6 +684,11 @@ def delete_subtask(task_id, subtask_id):
 @task_bp.route('/tasks/<int:task_id>/pipeline', methods=['GET'])
 @jwt_required()
 def get_task_pipeline(task_id):
+    cache_key = f"pipeline:task_{task_id}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached), 200
+
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -686,6 +738,7 @@ def get_task_pipeline(task_id):
                 s['end_date'] = s['end_date'].isoformat()
             ordered_stages.append(s)
 
+        cache.set(cache_key, ordered_stages, timeout=10)
         return jsonify(ordered_stages), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -749,6 +802,44 @@ def update_task_pipeline_stage(task_id, stage_name):
             )
 
         conn.commit()
+
+        # Dynamic Client Stage Synchronizer
+        task = Task.get_by_id(task_id)
+        if task and task.get('client_id'):
+            c_id = task['client_id']
+            new_client_status = None
+            if stage_name == 'planning' and status in ('in_progress', 'completed'):
+                new_client_status = 'planning'
+            elif stage_name == 'design' and status in ('in_progress', 'completed'):
+                new_client_status = 'design'
+            elif stage_name == 'development' and status in ('in_progress', 'completed'):
+                new_client_status = 'development'
+            elif stage_name == 'testing' and status in ('in_progress', 'completed'):
+                new_client_status = 'testing'
+            elif stage_name == 'client_verification':
+                if status == 'in_progress':
+                    new_client_status = 'delivery'
+                elif status == 'completed':
+                    new_client_status = 'completed'
+
+            if new_client_status:
+                from app.models.client import Client
+                Client.update(c_id, status=new_client_status)
+
+        # Invalidate pipeline stage and task caches
+        cache.delete(f"pipeline:task_{task_id}")
+        cache.delete(f"task:id_{task_id}")
+        org_id = claims.get('organisation_id')
+        if task:
+            if not org_id:
+                org_id = task.get('organisation_id')
+            client_id = task.get('client_id')
+            if org_id:
+                cache.delete_pattern(f"clients:org_{org_id}:*")
+                cache.delete_pattern(f"clients_search:org_{org_id}:*")
+            if client_id:
+                cache.delete(f"client:id_{client_id}")
+
         return jsonify({"message": f"Pipeline stage '{stage_name}' updated successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
