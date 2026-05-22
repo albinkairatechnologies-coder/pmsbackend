@@ -139,6 +139,19 @@ def reject_leave(leave_id):
     return jsonify(row), 200
 
 
+@hr_bp.route('/leaves/<int:leave_id>', methods=['DELETE'])
+@jwt_required()
+def delete_leave(leave_id):
+    claims = get_jwt()
+    if claims['role'] not in LEAD_ROLES:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    success, err = Leave.delete(leave_id)
+    if err:
+        return jsonify({'error': err}), 400
+    return jsonify({'message': 'Leave request deleted successfully'}), 200
+
+
 # ════════════════════════════════════════════════════════════
 #  PERMISSION ROUTES
 # ════════════════════════════════════════════════════════════

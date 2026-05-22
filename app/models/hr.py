@@ -208,6 +208,33 @@ class Leave:
         cursor.close(); conn.close()
         return row or {}
 
+    @staticmethod
+    def delete(leave_id):
+        conn   = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("SELECT * FROM leave_requests WHERE id=%s", (leave_id,))
+        leave = cursor.fetchone()
+        if not leave:
+            cursor.close(); conn.close()
+            return False, "Leave request not found"
+        
+        # If the leave request was approved, delete associated on_leave attendance records
+        if leave['status'] == 'approved':
+            from datetime import date as dt_date
+            s = leave['start_date'] if isinstance(leave['start_date'], dt_date) else dt_date.fromisoformat(str(leave['start_date']))
+            e = leave['end_date']   if isinstance(leave['end_date'],   dt_date) else dt_date.fromisoformat(str(leave['end_date']))
+            d = s
+            while d <= e:
+                cursor.execute("""
+                    DELETE FROM attendance WHERE user_id=%s AND date=%s AND status='on_leave'
+                """, (leave['user_id'], d))
+                d += timedelta(days=1)
+                
+        cursor.execute("DELETE FROM leave_requests WHERE id=%s", (leave_id,))
+        conn.commit()
+        cursor.close(); conn.close()
+        return True, None
+
 
 class Permission:
 
