@@ -7,7 +7,9 @@ import os
 
 messages_bp = Blueprint('messages', __name__)
 
-UPLOAD_FOLDER = 'uploads/messages'
+UPLOAD_FOLDER = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'uploads', 'messages')
+)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 @messages_bp.route('/contacts', methods=['GET'])

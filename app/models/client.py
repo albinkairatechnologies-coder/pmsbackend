@@ -26,15 +26,17 @@ class Client:
     @staticmethod
     def create(company_name, contact_person, phone, email, package_purchased,
                project_start_date, deadline, notes, user_id=None, total_amount=None, organisation_id=None):
+        import secrets
         conn = get_db_connection()
         try:
             cursor = conn.cursor()
+            token = secrets.token_hex(16)
             cursor.execute("""
                 INSERT INTO clients (company_name, contact_person, phone, email,
-                package_purchased, project_start_date, deadline, notes, user_id, total_amount, organisation_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                package_purchased, project_start_date, deadline, notes, user_id, total_amount, organisation_id, tracking_token)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (company_name, contact_person, phone, email, package_purchased,
-                  project_start_date, deadline, notes, user_id, total_amount or 0, organisation_id))
+                  project_start_date, deadline, notes, user_id, total_amount or 0, organisation_id, token))
             conn.commit()
             client_id = cursor.lastrowid
             cursor.close()

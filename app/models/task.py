@@ -7,14 +7,16 @@ class Task:
     def create(title, description, assigned_by, assigned_to=None, team_id=None,
                department_id=None, client_id=None, department='general',
                status='pending', priority='medium', due_date=None, organisation_id=None):
+        import secrets
+        tracking_token = secrets.token_hex(16)
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO tasks (title, description, assigned_by, assigned_to, team_id,
-            department_id, client_id, department, status, priority, due_date, organisation_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            department_id, client_id, department, status, priority, due_date, organisation_id, tracking_token)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (title, description, assigned_by, assigned_to, team_id,
-              department_id, client_id, department, status, priority, due_date, organisation_id))
+              department_id, client_id, department, status, priority, due_date, organisation_id, tracking_token))
         conn.commit()
         task_id = cursor.lastrowid
         # Log activity
@@ -34,7 +36,7 @@ class Task:
             SELECT t.*,
                    u.name as assigned_name, u.role as assigned_role,
                    ab.name as assigned_by_name,
-                   c.company_name,
+                   c.company_name, c.tracking_token as client_tracking_token,
                    tm.name as team_name,
                    d.name as department_name
             FROM tasks t
@@ -57,7 +59,7 @@ class Task:
             SELECT t.*,
                    u.name as assigned_name, u.role as assigned_role,
                    ab.name as assigned_by_name,
-                   c.company_name,
+                   c.company_name, c.tracking_token as client_tracking_token,
                    tm.name as team_name,
                    d.name as department_name
             FROM tasks t
@@ -126,9 +128,10 @@ class Task:
         cursor = conn.cursor(dictionary=True)
         try:
             cursor.execute("""
-                SELECT stage_name, status, start_date, end_date, responsible_person_id
-                FROM task_pipeline_stages
-                WHERE task_id = %s
+                SELECT s.stage_name, s.status, s.start_date, s.end_date, s.responsible_person_id, u.name as responsible_person_name
+                FROM task_pipeline_stages s
+                LEFT JOIN users u ON s.responsible_person_id = u.id
+                WHERE s.task_id = %s
             """, (task_id,))
             stages = cursor.fetchall()
             for s in stages:

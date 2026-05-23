@@ -915,3 +915,71 @@ def check_and_create_overdue_notifications(org_id=None):
         logging.getLogger(__name__).error(f"Error checking overdue tasks: {e}")
     finally:
         cursor.close(); conn.close()
+
+
+# ── Public Passwordless Client Tracking Endpoint ───────────────────────
+@task_bp.route('/public/tasks/track/<string:token>', methods=['GET'])
+def get_public_tracking_task(token):
+    from datetime import datetime, date
+    from decimal import Decimal
+
+    def serialize(row):
+        out = {}
+        for k, v in row.items():
+            if isinstance(v, (datetime, date)):
+                out[k] = v.isoformat()
+            elif isinstance(v, Decimal):
+                out[k] = float(v)
+            else:
+                out[k] = v
+        return out
+
+    # Look up the task matching the tracking token
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("""
+            SELECT t.*,
+                   u.name as assigned_name, u.role as assigned_role,
+                   ab.name as assigned_by_name,
+                   c.company_name, c.contact_person, c.phone as client_phone, c.email as client_email,
+                   tm.name as team_name,
+                   d.name as department_name
+            FROM tasks t
+            LEFT JOIN users u ON t.assigned_to = u.id
+            LEFT JOIN users ab ON t.assigned_by = ab.id
+            LEFT JOIN clients c ON t.client_id = c.id
+            LEFT JOIN teams tm ON t.team_id = tm.id
+            LEFT JOIN departments d ON t.department_id = d.id
+            WHERE t.tracking_token = %s
+            LIMIT 1
+        """, (token,))
+        task = cursor.fetchone()
+        
+        if not task:
+            return jsonify({"error": "Tracking task not found or link has expired"}), 404
+        
+        # Serialize the task details
+        serialized = serialize(task)
+        
+        # Fetch the pipeline stages
+        serialized['pipeline_stages'] = Task.get_pipeline_stages(task['id'])
+        
+        # Add public task activity logs
+        cursor.execute("""
+            SELECT action, new_value, created_at
+            FROM task_activity
+            WHERE task_id = %s
+            ORDER BY created_at DESC
+        """, (task['id'],))
+        activity_logs = cursor.fetchall()
+        serialized['activity'] = [serialize(log) for log in activity_logs]
+
+        return jsonify(serialized), 200
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error fetching tracking task: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+    finally:
+        cursor.close(); conn.close()
+
