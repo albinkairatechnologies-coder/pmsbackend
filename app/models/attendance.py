@@ -243,6 +243,18 @@ class Break:
             if cursor.fetchone():
                 cursor.close(); conn.close()
                 return None, "Lunch break already taken today"
+        elif break_type == 'short':
+            cursor.execute("SELECT COUNT(*) AS cnt FROM breaks WHERE user_id=%s AND attendance_id=%s AND break_type='short'", (user_id, att_id))
+            res = cursor.fetchone()
+            if res and res['cnt'] >= 2:
+                cursor.close(); conn.close()
+                return None, "Tea break daily limit (2 times) reached"
+        elif break_type == 'meeting':
+            cursor.execute("SELECT COUNT(*) AS cnt FROM breaks WHERE user_id=%s AND attendance_id=%s AND break_type='meeting'", (user_id, att_id))
+            res = cursor.fetchone()
+            if res and res['cnt'] >= 4:
+                cursor.close(); conn.close()
+                return None, "Meeting break daily limit (4 times) reached"
         cursor.execute("INSERT INTO breaks (user_id, attendance_id, break_type, break_start) VALUES (%s,%s,%s,%s)", (user_id, att_id, break_type, _now()))
         conn.commit()
         break_id = cursor.lastrowid
