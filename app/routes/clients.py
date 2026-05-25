@@ -198,6 +198,32 @@ def get_public_tracking_client(client_token):
         if not client:
             return jsonify({"error": "Client not found or tracking link is invalid."}), 404
         
+        # Self-healing check: if client has no associated user_id or the associated user got deleted
+        user_id = client.get('user_id')
+        user_exists = False
+        if user_id:
+            from app.models.user import User
+            user_exists = User.get_by_id(user_id) is not None
+
+        if not user_id or not user_exists:
+            from app.models.user import User
+            email = client.get('email') or f"client_{client['id']}@kairavcard.com"
+            existing = User.get_by_email(email)
+            if existing:
+                user_id = existing['id']
+            else:
+                user_id = User.create(
+                    name=client['contact_person'] or "Client",
+                    email=email,
+                    password='client123',
+                    role='client',
+                    phone=client.get('phone'),
+                    organisation_id=client.get('organisation_id')
+                )
+            cursor.execute("UPDATE clients SET user_id = %s WHERE id = %s", (user_id, client['id']))
+            conn.commit()
+            client['user_id'] = user_id
+
         serialized_client = serialize(client)
         
         # Get tasks for this client
@@ -298,7 +324,7 @@ def send_public_tracking_message(client_token, task_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT id, user_id FROM clients WHERE tracking_token = %s LIMIT 1", (client_token,))
+        cursor.execute("SELECT * FROM clients WHERE tracking_token = %s LIMIT 1", (client_token,))
         client = cursor.fetchone()
         if not client:
             return jsonify({"error": "Client not found or tracking link is invalid."}), 404
@@ -309,9 +335,31 @@ def send_public_tracking_message(client_token, task_id):
         if not task:
             return jsonify({"error": "Unauthorized or task not found"}), 403
             
+        # Self-healing check: if client has no associated user_id or the associated user got deleted
         user_id = client.get('user_id')
-        if not user_id:
-            return jsonify({"error": "No user account associated with this client. Please contact PM."}), 400
+        user_exists = False
+        if user_id:
+            from app.models.user import User
+            user_exists = User.get_by_id(user_id) is not None
+
+        if not user_id or not user_exists:
+            from app.models.user import User
+            email = client.get('email') or f"client_{client['id']}@kairavcard.com"
+            existing = User.get_by_email(email)
+            if existing:
+                user_id = existing['id']
+            else:
+                user_id = User.create(
+                    name=client['contact_person'] or "Client",
+                    email=email,
+                    password='client123',
+                    role='client',
+                    phone=client.get('phone'),
+                    organisation_id=client.get('organisation_id')
+                )
+            cursor.execute("UPDATE clients SET user_id = %s WHERE id = %s", (user_id, client['id']))
+            conn.commit()
+            client['user_id'] = user_id
             
         data = request.json
         msg_id = Task.send_message(
