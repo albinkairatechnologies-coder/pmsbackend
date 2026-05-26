@@ -91,6 +91,19 @@ def admin_dashboard():
         GROUP BY u.id ORDER BY completed_tasks DESC
     """, p)
     employee_productivity = cursor.fetchall()
+    # Overall task stats for admin dashboard card metrics
+    cursor.execute(f"""
+        SELECT COUNT(tk.id) as total_tasks,
+               CAST(COALESCE(SUM(CASE WHEN tk.status='completed' THEN 1 ELSE 0 END), 0) AS SIGNED) as completed,
+               CAST(COALESCE(SUM(CASE WHEN tk.status='in_progress' THEN 1 ELSE 0 END), 0) AS SIGNED) as in_progress,
+               CAST(COALESCE(SUM(CASE WHEN tk.status='pending' THEN 1 ELSE 0 END), 0) AS SIGNED) as pending,
+               CAST(COALESCE(SUM(CASE WHEN tk.status='review' THEN 1 ELSE 0 END), 0) AS SIGNED) as in_review,
+               CAST(COALESCE(SUM(CASE WHEN tk.due_date < CURDATE() AND tk.status != 'completed' THEN 1 ELSE 0 END), 0) AS SIGNED) as overdue
+        FROM tasks tk
+        LEFT JOIN users u ON tk.assigned_to = u.id
+        {'WHERE u.organisation_id = %s' if org_id else ''}
+    """, p)
+    task_stats = cursor.fetchone()
 
     cursor.close(); conn.close()
 
@@ -101,7 +114,8 @@ def admin_dashboard():
         "total_clients": total_clients,
         "team_performance": team_performance,
         "dept_performance": dept_performance,
-        "employee_productivity": employee_productivity
+        "employee_productivity": employee_productivity,
+        "task_stats": task_stats
     }), 200
 
 
