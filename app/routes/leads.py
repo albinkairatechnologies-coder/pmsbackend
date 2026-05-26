@@ -7,7 +7,7 @@ from app.models.finance import ClientPayment
 
 leads_bp = Blueprint('leads', __name__)
 
-ALLOWED_ROLES = ['admin', 'bdm', 'crm', 'crm_head', 'marketing_head', 'smm', 'team_lead']
+ALLOWED_ROLES = ['admin', 'bdm', 'bdm_head', 'crm', 'crm_head', 'marketing_head', 'smm', 'team_lead']
 
 
 @leads_bp.route('/leads', methods=['GET'])
@@ -93,7 +93,7 @@ def update_lead(lead_id):
 @jwt_required()
 def delete_lead(lead_id):
     claims = get_jwt()
-    if claims['role'] not in ['admin', 'bdm', 'marketing_head']:
+    if claims['role'] not in ['admin', 'bdm', 'bdm_head', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
     Lead.delete(lead_id)
     return jsonify({"message": "Lead deleted"}), 200
@@ -126,7 +126,7 @@ def add_followup(lead_id):
 @jwt_required()
 def convert_to_client(lead_id):
     claims = get_jwt()
-    if claims['role'] not in ['admin', 'bdm', 'crm_head', 'marketing_head']:
+    if claims['role'] not in ['admin', 'bdm', 'bdm_head', 'crm_head', 'marketing_head']:
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.json

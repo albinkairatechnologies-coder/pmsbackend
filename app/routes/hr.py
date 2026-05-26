@@ -5,7 +5,7 @@ from app.models.notification import Notification
 
 hr_bp = Blueprint('hr', __name__)
 
-LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'bdm_head', 'team_lead', 'crm_head', 'marketing_head']
 
 
 def _notify(*args, **kwargs):

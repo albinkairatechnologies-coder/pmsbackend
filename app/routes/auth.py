@@ -21,7 +21,7 @@ print(f"DEBUG: PROFILE_UPLOAD_FOLDER is {os.path.abspath(PROFILE_UPLOAD_FOLDER)}
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(PROFILE_UPLOAD_FOLDER, exist_ok=True)
 
-VALID_ROLES = {'admin', 'bdm', 'marketing_head', 'developer', 'smm', 'video_editor', 'designer', 'crm_head', 'crm', 'client', 'team_lead', 'employee'}
+VALID_ROLES = {'admin', 'bdm', 'bdm_head', 'marketing_head', 'developer', 'smm', 'video_editor', 'designer', 'crm_head', 'crm', 'client', 'team_lead', 'employee'}
 
 
 # ── Login ─────────────────────────────────────────────────────

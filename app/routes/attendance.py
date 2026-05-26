@@ -4,7 +4,7 @@ from app.models.attendance import Attendance, Break
 
 attendance_bp = Blueprint('attendance', __name__)
 
-LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'bdm_head', 'team_lead', 'crm_head', 'marketing_head']
 
 
 # ── Check-in ──────────────────────────────────────────────────

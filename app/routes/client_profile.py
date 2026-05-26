@@ -4,8 +4,8 @@ from app.models.client_profile import ClientProfile
 
 client_profile_bp = Blueprint('client_profile', __name__)
 
-ADMIN_ROLES  = ['admin', 'bdm', 'marketing_head', 'crm_head']
-VIEWER_ROLES = ['admin', 'bdm', 'marketing_head', 'crm_head', 'team_lead']
+ADMIN_ROLES  = ['admin', 'bdm', 'bdm_head', 'marketing_head', 'crm_head']
+VIEWER_ROLES = ['admin', 'bdm', 'bdm_head', 'marketing_head', 'crm_head', 'team_lead']
 
 
 @client_profile_bp.route('/clients/<int:client_id>/profiles', methods=['GET'])

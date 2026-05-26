@@ -8,7 +8,7 @@ from app.utils.redis import cache
 
 client_bp = Blueprint('client', __name__)
 
-ALLOWED_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head', 'team_lead']
+ALLOWED_ROLES = ['admin', 'bdm', 'bdm_head', 'crm_head', 'marketing_head', 'team_lead']
 
 @client_bp.route('/clients', methods=['POST'])
 @jwt_required()

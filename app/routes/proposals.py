@@ -6,8 +6,8 @@ import os, json, urllib.request, urllib.error
 
 proposals_bp = Blueprint('proposals', __name__)
 
-ALLOWED_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head', 'team_lead']
-ALLOWED_INVOICE_ROLES = ['admin', 'bdm', 'crm_head', 'marketing_head']
+ALLOWED_ROLES = ['admin', 'bdm', 'bdm_head', 'crm_head', 'marketing_head', 'team_lead']
+ALLOWED_INVOICE_ROLES = ['admin', 'bdm', 'bdm_head', 'crm_head', 'marketing_head']
 
 # ── AI helper ─────────────────────────────────────────────────
 

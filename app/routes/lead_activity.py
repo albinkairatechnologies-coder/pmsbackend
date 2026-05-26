@@ -6,8 +6,8 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 lead_activity_bp = Blueprint('lead_activity', __name__)
-ALLOWED = ['admin', 'bdm', 'crm', 'crm_head', 'marketing_head', 'smm', 'team_lead']
-ADMIN   = ['admin', 'bdm', 'crm_head', 'marketing_head']
+ALLOWED = ['admin', 'bdm', 'bdm_head', 'crm', 'crm_head', 'marketing_head', 'smm', 'team_lead']
+ADMIN   = ['admin', 'bdm', 'bdm_head', 'crm_head', 'marketing_head']
 IST     = ZoneInfo('Asia/Kolkata')
 
 

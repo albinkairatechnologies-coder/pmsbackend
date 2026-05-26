@@ -122,7 +122,7 @@ class User:
                 FROM users u
                 LEFT JOIN teams t ON u.team_id = t.id
                 LEFT JOIN departments d ON u.department_id = d.id
-                WHERE u.role IN ('team_lead', 'crm_head', 'marketing_head', 'crm', 'bdm') {org_f}
+                WHERE u.role IN ('team_lead', 'crm_head', 'marketing_head', 'crm', 'bdm', 'bdm_head') {org_f}
             """, params)
             leads = cursor.fetchall()
             cursor.close()

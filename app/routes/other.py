@@ -9,7 +9,7 @@ other_bp = Blueprint('other', __name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-LEAD_ROLES = ['admin', 'bdm', 'team_lead', 'crm_head', 'marketing_head']
+LEAD_ROLES = ['admin', 'bdm', 'bdm_head', 'team_lead', 'crm_head', 'marketing_head']
 
 
 @other_bp.route('/worklogs', methods=['POST'])
@@ -136,7 +136,8 @@ def update_letterhead():
         return jsonify({"error": "Unauthorized"}), 403
     data = request.json
     allowed = ['company_name', 'company_address', 'company_phone',
-               'company_email', 'company_website', 'company_logo_path']
+               'company_email', 'company_website', 'company_logo_path',
+               'role_permissions']
     update_data = {k: v for k, v in data.items() if k in allowed}
     CompanySettings.update(**update_data)
     return jsonify({"message": "Settings updated"}), 200
