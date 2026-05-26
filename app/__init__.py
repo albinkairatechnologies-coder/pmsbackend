@@ -154,6 +154,7 @@ from app.routes.lead_activity import lead_activity_bp
 from app.routes.finance import finance_bp
 from app.routes.campaigns import campaigns_bp
 from app.routes.expenses import expenses_bp
+from app.routes.videocall import videocall_bp
 
 app.register_blueprint(auth_bp,          url_prefix='/api/auth')
 app.register_blueprint(client_bp,        url_prefix='/api')
@@ -182,6 +183,7 @@ app.register_blueprint(lead_activity_bp, url_prefix='/api')
 app.register_blueprint(finance_bp,       url_prefix='/api')
 app.register_blueprint(campaigns_bp,     url_prefix='/api')
 app.register_blueprint(expenses_bp,      url_prefix='/api')
+app.register_blueprint(videocall_bp,     url_prefix='/api/videocall')
 
 limiter.limit('10 per minute', methods=['GET','POST','PUT','PATCH','DELETE'])(auth_bp)
 
