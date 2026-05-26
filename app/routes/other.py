@@ -187,3 +187,13 @@ def get_files():
         return jsonify({"error": "client_id required"}), 400
     files = File.get_by_client(int(client_id))
     return jsonify(files), 200
+
+
+@other_bp.route('/public/apps/<filename>', methods=['GET'])
+def download_app(filename):
+    from flask import send_from_directory
+    apps_dir = os.path.normpath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'uploads', 'apps')
+    )
+    return send_from_directory(apps_dir, filename, as_attachment=True)
+
