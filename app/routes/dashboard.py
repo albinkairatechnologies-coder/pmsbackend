@@ -160,11 +160,38 @@ def lead_dashboard():
     """, (user_id,))
     team_performance = cursor.fetchall()
 
+    # Get logged-in user's team and department to fetch department employee attendance
+    cursor.execute("SELECT team_id, department_id FROM users WHERE id = %s", (user_id,))
+    user_row = cursor.fetchone()
+    team_id = user_row.get('team_id') if user_row else None
+    dept_id = user_row.get('department_id') if user_row else None
+
+    dept_attendance = []
+    cursor.execute("""
+        SELECT DISTINCT u.id as user_id, u.name, u.role,
+               a.check_in_time, a.check_out_time, a.status, a.net_hours, a.total_hours
+        FROM users u
+        LEFT JOIN attendance a ON u.id = a.user_id AND a.date = CURDATE()
+        WHERE (u.manager_id = %s OR 
+               (u.department_id IS NOT NULL AND u.department_id = %s) OR 
+               (u.team_id IS NOT NULL AND u.team_id = %s))
+          AND u.role != 'client' AND u.id != %s
+        ORDER BY u.name ASC
+    """, (user_id, dept_id, team_id, user_id))
+    rows = cursor.fetchall()
+    for r in rows:
+        if r.get('check_in_time') and not isinstance(r['check_in_time'], str):
+            r['check_in_time'] = r['check_in_time'].isoformat()
+        if r.get('check_out_time') and not isinstance(r['check_out_time'], str):
+            r['check_out_time'] = r['check_out_time'].isoformat()
+        dept_attendance.append(r)
+
     cursor.close(); conn.close()
     return jsonify({
         "task_stats": task_stats,
         "pending_approvals": pending_approvals,
-        "team_performance": team_performance
+        "team_performance": team_performance,
+        "dept_attendance": dept_attendance
     }), 200
 
 

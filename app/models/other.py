@@ -277,9 +277,12 @@ class WorkLog:
             LEFT JOIN tasks t ON wl.task_id = t.id
             LEFT JOIN departments d ON u.department_id = d.id
             LEFT JOIN users ab ON wl.approved_by = ab.id
-            WHERE (wl.team_leader_id = %s OR u.manager_id = %s)
+            WHERE (wl.team_leader_id = %s OR 
+                   u.manager_id = %s OR 
+                   (u.team_id IS NOT NULL AND u.team_id = (SELECT team_id FROM users WHERE id = %s)) OR
+                   (u.department_id IS NOT NULL AND u.department_id = (SELECT department_id FROM users WHERE id = %s)))
         """
-        params = [team_leader_id, team_leader_id]
+        params = [team_leader_id, team_leader_id, team_leader_id, team_leader_id]
         if employee_id:
             query += " AND wl.user_id = %s"; params.append(employee_id)
         if client_id:
