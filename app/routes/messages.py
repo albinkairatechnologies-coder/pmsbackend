@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.utils.database import get_db_connection
 from datetime import datetime
+from app.utils.timezone import now_ist
 from werkzeug.utils import secure_filename
 import os
 
@@ -172,7 +173,7 @@ def send_message():
         cursor.execute('''
             INSERT INTO messages (sender_id, receiver_id, group_id, content, timestamp, file_url, file_name, file_type)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-        ''', (user_id, db_receiver_id, db_group_id, content or '', datetime.now(), file_url, file_name, file_type))
+        ''', (user_id, db_receiver_id, db_group_id, content or '', now_ist(), file_url, file_name, file_type))
         conn.commit()
         msg_id = cursor.lastrowid
 
@@ -398,7 +399,7 @@ def upload_chat_file():
     except Exception as e:
         print(f"[Upload Size Check Error] {e}")
 
-    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
+    filename = f"{now_ist().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
     file.save(os.path.join(UPLOAD_FOLDER, filename))
     return jsonify({'file_url': filename, 'file_name': file.filename, 'file_type': file.content_type}), 201
 

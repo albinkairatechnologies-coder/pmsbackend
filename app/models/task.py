@@ -340,9 +340,9 @@ class Task:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO task_messages (task_id, user_id, content, message_type, file_url)
-            VALUES (%s, %s, %s, %s, %s)
-        """, (task_id, user_id, content, message_type, file_url))
+            INSERT INTO task_messages (task_id, user_id, content, message_type, file_url, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (task_id, user_id, content, message_type, file_url, now_ist()))
         conn.commit()
         msg_id = cursor.lastrowid
         cursor.close(); conn.close()

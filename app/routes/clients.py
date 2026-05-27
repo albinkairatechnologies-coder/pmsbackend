@@ -5,6 +5,7 @@ from app.models.user import User
 from app.models.other import Notification
 from app.models.task import Task
 from app.utils.redis import cache
+from app.utils.timezone import now_ist
 
 client_bp = Blueprint('client', __name__)
 
@@ -417,7 +418,7 @@ def upload_public_tracking_file(client_token, task_id):
         )
         os.makedirs(UPLOAD_FOLDER, exist_ok=True)
         
-        filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
+        filename = f"{now_ist().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
         file.save(os.path.join(UPLOAD_FOLDER, filename))
         
         return jsonify({'file_url': filename, 'file_name': file.filename, 'file_type': file.content_type}), 201
