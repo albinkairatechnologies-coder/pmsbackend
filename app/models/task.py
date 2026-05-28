@@ -322,9 +322,17 @@ class Task:
         cursor.close(); conn.close()
 
     @staticmethod
-    def get_messages(task_id):
+    def get_messages(task_id, current_user_id=None):
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
+        if current_user_id:
+            # Mark messages sent by others as read for the current user
+            cursor.execute("""
+                UPDATE task_messages SET is_read = 1 
+                WHERE task_id = %s AND user_id != %s AND is_read = 0
+            """, (task_id, current_user_id))
+            conn.commit()
+
         cursor.execute("""
             SELECT tm.*, u.name as user_name, u.role as user_role
             FROM task_messages tm
@@ -340,8 +348,8 @@ class Task:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute("""
-            INSERT INTO task_messages (task_id, user_id, content, message_type, file_url, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO task_messages (task_id, user_id, content, message_type, file_url, created_at, is_read)
+            VALUES (%s, %s, %s, %s, %s, %s, 0)
         """, (task_id, user_id, content, message_type, file_url, now_ist()))
         conn.commit()
         msg_id = cursor.lastrowid

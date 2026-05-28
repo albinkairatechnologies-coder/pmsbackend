@@ -496,7 +496,7 @@ class Proposal:
                 company_name  = os.getenv('COMPANY_NAME', 'KairaFlow')
                 company_email = os.getenv('COMPANY_EMAIL', 'info@kairaflow.com')
                 smtp_host     = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-                smtp_port     = int(os.getenv('SMTP_PORT', '587'))
+                smtp_port     = int(os.getenv('SMTP_PORT', '2525'))
                 smtp_user     = os.getenv('SMTP_USER', '')
                 smtp_pass     = os.getenv('SMTP_PASS', '')
 

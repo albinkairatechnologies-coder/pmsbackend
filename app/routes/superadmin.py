@@ -63,7 +63,7 @@ def _get_ip():
 
 def _send_otp_email(to_email: str, to_name: str, otp: str):
     smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.getenv('SMTP_PORT', 587))
+    smtp_port = int(os.getenv('SMTP_PORT', 2525))
     smtp_user = os.getenv('SMTP_USER')
     smtp_pass = os.getenv('SMTP_PASS')
 

@@ -378,7 +378,8 @@ def get_client_stats(client_id):
 @task_bp.route('/tasks/<int:task_id>/messages', methods=['GET'])
 @jwt_required()
 def get_task_messages(task_id):
-    messages = Task.get_messages(task_id)
+    user_id = int(get_jwt_identity())
+    messages = Task.get_messages(task_id, current_user_id=user_id)
     return jsonify(messages), 200
 
 
