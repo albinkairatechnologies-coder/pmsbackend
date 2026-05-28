@@ -177,6 +177,19 @@ class Proposal:
                     continue
 
         def img_path(filename):
+            # Try frontend/public folder first
+            p = os.path.normpath(
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', filename)
+            )
+            if os.path.exists(p):
+                return p
+            # Handle potential double-dot typo fallback in filename (e.g. letterpadbottom..png)
+            if 'letterpadbottom' in filename:
+                p_alt = os.path.normpath(
+                    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', 'letterpadbottom..png')
+                )
+                if os.path.exists(p_alt):
+                    return p_alt
             return os.path.normpath(
                 os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', filename)
             )
@@ -493,12 +506,9 @@ class Proposal:
         recipient = proposal.get('email') or proposal.get('client_email')
         if recipient:
             try:
+                from app.utils.mail import send_email
                 company_name  = os.getenv('COMPANY_NAME', 'KairaFlow')
                 company_email = os.getenv('COMPANY_EMAIL', 'info@kairaflow.com')
-                smtp_host     = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-                smtp_port     = int(os.getenv('SMTP_PORT', '2525'))
-                smtp_user     = os.getenv('SMTP_USER', '')
-                smtp_pass     = os.getenv('SMTP_PASS', '')
 
                 client_name = proposal.get('lead_name') or proposal.get('contact_person', '')
 
@@ -506,6 +516,7 @@ class Proposal:
                 pdf_buf = Proposal._build_proposal_pdf(
                     proposal, template_name, line_items, total_amount, note, proposal_text
                 )
+                pdf_bytes = pdf_buf.read()
 
                 # Simple plain email body
                 html = f"""
@@ -522,25 +533,14 @@ class Proposal:
                   <p style="color:#374151">Warm regards,<br><strong>{company_name}</strong></p>
                 </div>"""
 
-                msg = MIMEMultipart('mixed')
-                msg['Subject'] = f"Project Proposal — {template_name or company_name}"
-                msg['From']    = f"{company_name} <{smtp_user or company_email}>"
-                msg['To']      = recipient
-                msg.attach(MIMEText(html, 'html'))
-
-                # Attach the letterpad PDF
-                pdf_bytes = pdf_buf.read()
-                pdf_part  = MIMEApplication(pdf_bytes, _subtype='pdf')
                 safe_name = (template_name or 'Proposal').replace(' ', '_')
-                pdf_part.add_header('Content-Disposition', 'attachment',
-                                    filename=f"{safe_name}_Proposal.pdf")
-                msg.attach(pdf_part)
-
-                if smtp_user and smtp_pass:
-                    with smtplib.SMTP(smtp_host, smtp_port, timeout=10) as server:
-                        server.starttls()
-                        server.login(smtp_user, smtp_pass)
-                        server.sendmail(smtp_user, recipient, msg.as_string())
+                send_email(
+                    to_email=recipient,
+                    subject=f"Project Proposal — {template_name or company_name}",
+                    html_content=html,
+                    attachment_bytes=pdf_bytes,
+                    attachment_name=f"{safe_name}_Proposal.pdf"
+                )
             except Exception as e:
                 print(f"Email send warning: {e}")
 

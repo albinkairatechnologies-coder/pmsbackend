@@ -169,6 +169,19 @@ def generate_pdf():
     }
 
     def img_path(filename):
+        # Try frontend/public folder first
+        p = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', filename)
+        )
+        if os.path.exists(p):
+            return p
+        # Handle potential double-dot typo fallback in filename (e.g. letterpadbottom..png)
+        if 'letterpadbottom' in filename:
+            p_alt = os.path.normpath(
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', 'letterpadbottom..png')
+            )
+            if os.path.exists(p_alt):
+                return p_alt
         return os.path.normpath(
             os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', filename)
         )
@@ -349,6 +362,19 @@ def salary_report_pdf():
     FONT_NORMAL, FONT_BOLD = _get_pdf_fonts()
     
     def img_path(filename):
+        # Try frontend/public folder first
+        p = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', filename)
+        )
+        if os.path.exists(p):
+            return p
+        # Handle potential double-dot typo fallback in filename (e.g. letterpadbottom..png)
+        if 'letterpadbottom' in filename:
+            p_alt = os.path.normpath(
+                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', 'letterpadbottom..png')
+            )
+            if os.path.exists(p_alt):
+                return p_alt
         return os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', filename))
     
     top_path = img_path('letterpadtop.png')

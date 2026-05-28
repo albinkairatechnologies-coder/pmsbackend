@@ -62,15 +62,7 @@ def _get_ip():
 
 
 def _send_otp_email(to_email: str, to_name: str, otp: str):
-    smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-    smtp_port = int(os.getenv('SMTP_PORT', 2525))
-    smtp_user = os.getenv('SMTP_USER')
-    smtp_pass = os.getenv('SMTP_PASS')
-
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = 'KairaFlow SuperAdmin — Your OTP Code'
-    msg['From']    = f'KairaFlow Security <{smtp_user}>'
-    msg['To']      = to_email
+    from app.utils.mail import send_email
 
     html = f"""
     <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;background:#0f1729;border-radius:16px;padding:32px;">
@@ -91,12 +83,12 @@ def _send_otp_email(to_email: str, to_name: str, otp: str):
     </div>
     """
 
-    msg.attach(MIMEText(html, 'html'))
+    send_email(
+        to_email=to_email,
+        subject='KairaFlow SuperAdmin — Your OTP Code',
+        html_content=html
+    )
 
-    with smtplib.SMTP(smtp_host, smtp_port) as server:
-        server.starttls()
-        server.login(smtp_user, smtp_pass)
-        server.sendmail(smtp_user, to_email, msg.as_string())
 
 
 def _generate_otp() -> str:
