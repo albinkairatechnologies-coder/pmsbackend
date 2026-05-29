@@ -177,22 +177,31 @@ class Proposal:
                     continue
 
         def img_path(filename):
-            # Try frontend/public folder first
-            p = os.path.normpath(
-                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', filename)
-            )
-            if os.path.exists(p):
-                return p
+            base_dir = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+            # Try pmsfrontend/public folder
+            p1 = os.path.join(base_dir, 'pmsfrontend', 'public', filename)
+            if os.path.exists(p1):
+                return p1
+            # Try frontend/public folder
+            p2 = os.path.join(base_dir, 'frontend', 'public', filename)
+            if os.path.exists(p2):
+                return p2
             # Handle potential double-dot typo fallback in filename (e.g. letterpadbottom..png)
             if 'letterpadbottom' in filename:
-                p_alt = os.path.normpath(
-                    os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', 'public', 'letterpadbottom..png')
-                )
-                if os.path.exists(p_alt):
-                    return p_alt
-            return os.path.normpath(
-                os.path.join(os.path.dirname(__file__), '..', '..', '..', 'frontend', filename)
-            )
+                p_alt1 = os.path.join(base_dir, 'pmsfrontend', 'public', 'letterpadbottom..png')
+                if os.path.exists(p_alt1):
+                    return p_alt1
+                p_alt2 = os.path.join(base_dir, 'frontend', 'public', 'letterpadbottom..png')
+                if os.path.exists(p_alt2):
+                    return p_alt2
+            # Check other fallbacks
+            p3 = os.path.join(base_dir, 'pmsfrontend', filename)
+            if os.path.exists(p3):
+                return p3
+            p4 = os.path.join(base_dir, 'frontend', filename)
+            if os.path.exists(p4):
+                return p4
+            return p2
 
         top_path    = img_path('letterpadtop.png')
         bottom_path = img_path('letterpadbottom.png')
