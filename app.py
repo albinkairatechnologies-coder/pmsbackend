@@ -45,6 +45,8 @@ app.config['JWT_SECRET_KEY']            = os.getenv('JWT_SECRET_KEY', 'change-me
 app.config['JWT_ACCESS_TOKEN_EXPIRES']  = False   # controlled in generate_token()
 app.config['JWT_REFRESH_TOKEN_EXPIRES'] = False   # controlled in generate_refresh_token()
 app.config['JWT_ERROR_MESSAGE_KEY']     = 'error'
+app.config['JWT_TOKEN_LOCATION']        = ['headers', 'query_string']
+app.config['JWT_QUERY_STRING_NAME']     = 'token'
 
 # Request limits
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024   # 16 MB hard cap

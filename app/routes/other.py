@@ -191,6 +191,7 @@ def get_files():
 
 
 @other_bp.route('/public/apps/<filename>', methods=['GET'])
+@jwt_required(locations=["headers", "query_string"])
 def download_app(filename):
     from flask import send_from_directory
     apps_dir = os.path.normpath(
